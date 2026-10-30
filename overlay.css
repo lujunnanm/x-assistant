@@ -1,0 +1,30 @@
+#x-assistant-float{position:fixed;right:20px;bottom:20px;z-index:2147483646;width:522px;max-width:calc(100vw - 24px);padding:30px 26px 28px;box-sizing:border-box;border:1px solid #fff;border-radius:44px;background:radial-gradient(ellipse at 70% 0%,#e8d7f1a8,transparent 52%),linear-gradient(125deg,#fff2dff2,#ffe5e8ed 60%,#ffedc9f2);box-shadow:0 18px 44px #ac6b9430;backdrop-filter:blur(24px);font:16px/1.4 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;color:#38113e;text-align:left}
+#x-assistant-float *{box-sizing:border-box}
+#x-assistant-float header{display:flex;align-items:center;justify-content:space-between;margin:0 6px 26px 12px;height:38px}
+#x-assistant-float strong{display:flex;align-items:center;gap:20px;font-size:23px;font-weight:700;white-space:nowrap}
+#x-assistant-float strong::before{content:'𝕏';font-size:40px;color:#8b3268;font-weight:400;line-height:1}
+#x-assistant-float button{font:inherit;cursor:pointer}
+#x-assistant-float .close{border:1px solid #ffffffa0;width:39px;height:39px;border-radius:50%;background:#ffffff60;color:#9960cc;font-size:24px;line-height:1;padding:0}
+#x-assistant-float section{--progress:0;--ring:#ff678f;position:relative;display:grid;grid-template-columns:54px 61px 1fr 192px;align-items:center;gap:14px;min-height:87px;padding:14px 10px 14px 12px;margin-top:12px;border:1px solid #ffffffd0;border-radius:30px;background:linear-gradient(115deg,#ffffffb8,#fff9f17d 52%,#ffffff73);box-shadow:0 10px 20px #ed9b9c16}
+#x-assistant-float section[data-module=posting]{--ring:#ffbf4d}
+#x-assistant-float section::before{content:'';position:absolute;pointer-events:none;inset:-4px;padding:3px;border-radius:34px;background:conic-gradient(from 0deg,var(--ring) calc(var(--progress)*1turn),transparent 0);-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;filter:drop-shadow(0 0 4px var(--ring))}
+#x-assistant-float section>b{font-size:19px;font-weight:650;white-space:nowrap;padding-right:14px;border-right:1px solid #e9bfcd;line-height:36px}
+#x-assistant-float .module-icon{display:grid;place-items:center;width:54px;height:54px;border-radius:17px;color:white;background:linear-gradient(135deg,#ff9aaf,#ff647f);border:1px solid #ffb4c1;box-shadow:inset 0 1px 1px #fff9,0 7px 12px #ff6f852b}
+#x-assistant-float [data-module=posting] .module-icon{background:linear-gradient(135deg,#ffe398,#ffbe48);border-color:#ffdda0;box-shadow:inset 0 1px 1px #fff9,0 7px 12px #ffbe482b}
+#x-assistant-float .module-icon svg{width:30px;height:30px}
+#x-assistant-float .countdown{display:flex;align-items:baseline;justify-content:center;gap:7px;white-space:nowrap;font-variant-numeric:tabular-nums}
+#x-assistant-float .countdown span{color:#16bdb5;font-size:22px;font-weight:650}
+#x-assistant-float .countdown small{font-size:17px;font-weight:600;color:#63305e}
+#x-assistant-float .row{display:flex;gap:11px}
+#x-assistant-float .row button{width:91px;height:57px;border-radius:24px;border:1px solid #71ccff;background:linear-gradient(145deg,#4bbcff,#2475ff);color:#fff;font-size:20px;font-weight:650;box-shadow:inset 0 1px 1px #fff9,inset 0 -2px 1px #185afc,0 9px 16px #7474e33b}
+#x-assistant-float .row .danger{width:88px;color:#69378a;border-color:#eee0ff;background:linear-gradient(135deg,#f1e6ff,#e3d2fc);box-shadow:inset 0 1px 1px #fff,inset 0 -1px 1px #bdabf3,0 6px 12px #9770c21a}
+#x-assistant-float button:disabled{cursor:default;opacity:.72}
+#x-assistant-float button:focus-visible{outline:2px solid #8b3268;outline-offset:3px}
+#x-assistant-float .status{display:none!important}
+.x-assistant-selected{outline:1px solid #f36d9e!important;outline-offset:2px!important}
+@media(max-width:550px){#x-assistant-float{transform:scale(.7);transform-origin:bottom right;max-width:none}}
+/* V0.12.1: half-size panel, no perimeter countdown ring. */
+#x-assistant-float{transform:scale(.5)!important;transform-origin:bottom right!important}
+#x-assistant-float section::before{display:none!important}
+#x-assistant-float .row button{display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;padding:0!important}
+@media(max-width:550px){#x-assistant-float{transform:scale(.5)!important}}

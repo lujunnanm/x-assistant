@@ -1,0 +1,8 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>X 文案助手</title><link rel="stylesheet" href="panel.css"></head><body><main>
+<header><h1>X 文案助手</h1></header>
+<div id="message" role="status"></div>
+<section id="following"><h2>已关注库</h2><p class="hint">只读采集，按账号去重；未保证完整，保留历史记录。</p><div class="bar"><button id="following-read">读取当前关注列表</button><button id="following-stop" class="danger">停止读取</button><button id="following-export" class="secondary">导出已关注库</button></div><p id="following-status">尚未读取</p><p id="following-count"></p><details><summary>查看账号</summary><div id="following-list"></div></details></section>
+<section id="library"><div class="bar"><h2>文案库 <small id="count"></small></h2><button id="export" class="secondary">导出 JSON</button><label class="file">导入 JSON<input id="import" type="file" accept=".json,application/json"></label></div><p class="hint">导入按 ID 合并，数据保存在本地。</p>
+<details id="editor-details"><summary>添加 / 编辑文案</summary><form id="editor"><input id="rowid" type="hidden"><label>文案类型<select id="rowtype"><option value="reply">评论</option><option value="post">发帖</option></select></label><label>完整文案<textarea id="text" rows="4" required placeholder="在这里添加或编辑文案"></textarea></label><div class="bar"><button type="submit">保存条目</button><button id="cancel" type="button" class="secondary">取消编辑</button></div></form></details><details><summary>查看文案</summary><div id="rows"></div></details></section>
+<section id="logs-section"><details><summary>运行日志</summary><div id="logs"></div></details></section><footer>定位失败会停止，不会退回屏幕坐标猜测点击。网页改版后可能需要更新扩展。</footer>
+</main><script src="panel.js" type="module"></script></body></html>

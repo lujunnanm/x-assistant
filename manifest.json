@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "X 文案助手 · 验证版",
+  "version": "0.12.5",
+  "description": "X 页面悬浮互动循环：按关注状态比例自动评价、点赞和关注。",
+  "permissions": [
+    "storage",
+    "alarms",
+    "activeTab",
+    "scripting",
+    "offscreen",
+    "clipboardWrite"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "打开 X 文案助手"
+  },
+  "options_page": "panel.html",
+  "host_permissions": [
+    "https://x.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://x.com/*"
+      ],
+      "js": [
+        "interaction-core.js",
+        "coordination.js",
+        "overlay.js",
+        "posting.js"
+      ],
+      "css": [
+        "overlay.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

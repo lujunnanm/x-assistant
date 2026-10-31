@@ -1,0 +1,602 @@
+[
+  {
+    "id": "post_101",
+    "type": "post",
+    "text": "为什么很多人知道该做什么，却还是迟迟不行动？请从心理学角度解释。\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_102",
+    "type": "post",
+    "text": "一个普通人怎样判断自己看到的新闻是否值得相信？给出三个检查步骤。\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_103",
+    "type": "post",
+    "text": "为什么越忙的时候越容易拖延？这种状态应该怎么打破？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_104",
+    "type": "post",
+    "text": "如果每天只能学习一个小时，怎样安排才能长期保持进步？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_105",
+    "type": "post",
+    "text": "为什么人会高估短期变化，却低估长期坚持的力量？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_106",
+    "type": "post",
+    "text": "请用一个生活化的例子解释什么是幸存者偏差。\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_107",
+    "type": "post",
+    "text": "为什么同一件事，不同的人会得出完全相反的结论？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_108",
+    "type": "post",
+    "text": "怎样区分真正的独立思考和只是换一种方式跟风？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_109",
+    "type": "post",
+    "text": "人在做重要决定时，最容易忽略哪些隐藏成本？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_110",
+    "type": "post",
+    "text": "为什么坏消息总比好消息传播得更快？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_111",
+    "type": "post",
+    "text": "请用简单的话解释复利为什么不仅适用于金钱。\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_112",
+    "type": "post",
+    "text": "如果一个目标总是完不成，应该改目标还是改方法？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_113",
+    "type": "post",
+    "text": "为什么选择越多，人反而越难做决定？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_114",
+    "type": "post",
+    "text": "怎样判断一段建议适合别人，却未必适合自己？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_115",
+    "type": "post",
+    "text": "人为什么容易记住失败，却忽略已经取得的进步？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_116",
+    "type": "post",
+    "text": "为什么越想控制结果，内心反而越焦虑？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_117",
+    "type": "post",
+    "text": "怎样用最小成本验证一个新想法是否值得继续？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_118",
+    "type": "post",
+    "text": "为什么有些习惯坚持三天就放弃，有些却能保持多年？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_119",
+    "type": "post",
+    "text": "请解释沉没成本是怎样影响日常选择的。\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_120",
+    "type": "post",
+    "text": "一个人怎样建立不依赖情绪的行动系统？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_121",
+    "type": "post",
+    "text": "为什么互联网让信息更多，却不一定让人更有判断力？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_122",
+    "type": "post",
+    "text": "AI 普及之后，普通人最值得长期培养的能力是什么？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_123",
+    "type": "post",
+    "text": "怎样判断一个 AI 回答是在陈述事实还是进行推测？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_124",
+    "type": "post",
+    "text": "为什么同一个提示词，不同时间可能得到不同答案？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_125",
+    "type": "post",
+    "text": "请用普通人能听懂的方式解释大语言模型为什么会产生幻觉。\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_126",
+    "type": "post",
+    "text": "未来五年，哪些工作更可能被 AI 改变，而不是完全取代？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_127",
+    "type": "post",
+    "text": "使用 AI 搜索资料时，怎样避免把错误信息越查越真？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_128",
+    "type": "post",
+    "text": "为什么 AI 写出的内容有时正确，却让人感觉空洞？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_129",
+    "type": "post",
+    "text": "怎样让 AI 给出的建议更贴合个人实际情况？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_130",
+    "type": "post",
+    "text": "AI 生成内容越来越多之后，原创能力会变得更重要吗？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_131",
+    "type": "post",
+    "text": "请比较 AI 助手和传统搜索引擎各自更适合什么任务。\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_132",
+    "type": "post",
+    "text": "普通人使用 AI 时，最容易犯的三个错误是什么？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_133",
+    "type": "post",
+    "text": "为什么把问题描述清楚，往往比选择哪个 AI 更重要？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_134",
+    "type": "post",
+    "text": "怎样验证 AI 给出的数据、引用和链接是否真实存在？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_135",
+    "type": "post",
+    "text": "AI 能模拟情绪表达，但这和真正理解情绪有什么区别？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_136",
+    "type": "post",
+    "text": "如果只保留一个 AI 使用习惯，你最推荐哪一个？为什么？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_137",
+    "type": "post",
+    "text": "AI 时代的信息差会缩小，还是会变得更大？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_138",
+    "type": "post",
+    "text": "请解释上下文为什么会显著影响 AI 的回答质量。\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_139",
+    "type": "post",
+    "text": "怎样把一个模糊想法拆成 AI 可以执行的步骤？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_140",
+    "type": "post",
+    "text": "AI 能提高效率，为什么有些人使用后反而更忙了？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_141",
+    "type": "post",
+    "text": "为什么 X 上有些很简单的帖子，展示量反而特别高？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_142",
+    "type": "post",
+    "text": "展示量、互动量和有效关注之间，最容易被混淆的是什么？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_143",
+    "type": "post",
+    "text": "一个新账号应该优先提高发帖质量，还是增加互动频率？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_144",
+    "type": "post",
+    "text": "为什么相同内容在不同时间发布，结果可能差很多？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_145",
+    "type": "post",
+    "text": "怎样判断一条帖子是靠话题热度，还是靠内容本身传播？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_146",
+    "type": "post",
+    "text": "评论很多但关注增长很少，通常可能是什么原因？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_147",
+    "type": "post",
+    "text": "为什么有些账号粉丝不多，单条帖子的展示量却很高？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_148",
+    "type": "post",
+    "text": "X 上的推荐系统可能会参考哪些可观察的互动信号？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_149",
+    "type": "post",
+    "text": "新账号连续发帖却没有展示，应该先检查哪些问题？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_150",
+    "type": "post",
+    "text": "怎样区分真实互动和只是数字看起来热闹？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_151",
+    "type": "post",
+    "text": "同一条帖子频繁修改，会不会影响后续传播？请说明不确定性。\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_152",
+    "type": "post",
+    "text": "为什么评论区有时比原帖更容易吸引人停留？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_153",
+    "type": "post",
+    "text": "怎样写一个既能引发讨论、又不故意制造冲突的问题？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_154",
+    "type": "post",
+    "text": "帖子开头的第一句话，为什么会影响读者是否继续看？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_155",
+    "type": "post",
+    "text": "如果一个账号长期只发同类内容，会有哪些好处和限制？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_156",
+    "type": "post",
+    "text": "为什么标签加得更多，不一定带来更多精准展示？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_157",
+    "type": "post",
+    "text": "新账号应该怎样找到真正同频的第一批读者？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_158",
+    "type": "post",
+    "text": "怎样判断自己的内容是没有被看到，还是看到了但没人回应？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_159",
+    "type": "post",
+    "text": "发帖频率增加后互动反而下降，可能有哪些原因？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_160",
+    "type": "post",
+    "text": "如果只能优化发帖的一个环节，最值得先优化什么？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_161",
+    "type": "post",
+    "text": "为什么睡眠不足会让人更容易冲动和悲观？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_162",
+    "type": "post",
+    "text": "人类为什么会做梦？目前科学上有哪些主要解释？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_163",
+    "type": "post",
+    "text": "为什么运动之后心情通常会变好？背后有哪些生理机制？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_164",
+    "type": "post",
+    "text": "咖啡为什么能提神，又为什么对不同人的效果差异很大？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_165",
+    "type": "post",
+    "text": "为什么人在压力大时更容易想吃高糖高脂食物？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_166",
+    "type": "post",
+    "text": "请用简单例子解释概率和可能性不是一回事。\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_167",
+    "type": "post",
+    "text": "为什么我们看到月亮靠近地平线时，会觉得它更大？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_168",
+    "type": "post",
+    "text": "时间为什么在开心时感觉很快，在等待时却感觉很慢？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_169",
+    "type": "post",
+    "text": "为什么热水有时可能比冷水更快结冰？这个现象确定吗？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_170",
+    "type": "post",
+    "text": "人类的记忆为什么会在不知不觉中被改写？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_171",
+    "type": "post",
+    "text": "请解释为什么相关性不能直接证明因果关系。\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_172",
+    "type": "post",
+    "text": "为什么随机事件连续发生后，人会误以为下一次一定会反转？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_173",
+    "type": "post",
+    "text": "宇宙膨胀究竟是物体在移动，还是空间本身发生变化？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_174",
+    "type": "post",
+    "text": "如果光速不能被超过，宇宙为什么还能比光速更快膨胀？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_175",
+    "type": "post",
+    "text": "量子纠缠为什么不能直接用来超光速传递信息？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_176",
+    "type": "post",
+    "text": "为什么天空在白天是蓝色，日落时却偏红？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_177",
+    "type": "post",
+    "text": "地球上的黄金来自哪里？它是在地球形成时就存在的吗？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_178",
+    "type": "post",
+    "text": "为什么冰能浮在水面，而大多数固体会沉入液体？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_179",
+    "type": "post",
+    "text": "人类目前寻找外星生命最有希望的线索是什么？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_180",
+    "type": "post",
+    "text": "请用不涉及复杂公式的方法解释熵是什么。\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_181",
+    "type": "post",
+    "text": "历史上有哪些被广泛相信、后来却被证伪的常识？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_182",
+    "type": "post",
+    "text": "为什么很多历史事件在不同国家的叙述中差异很大？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_183",
+    "type": "post",
+    "text": "一个社会的技术进步，为什么不一定同步带来生活满意度提升？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_184",
+    "type": "post",
+    "text": "为什么城市越大，人有时反而越容易感到孤独？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_185",
+    "type": "post",
+    "text": "经济增长和普通人的实际生活感受为什么可能不同步？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_186",
+    "type": "post",
+    "text": "为什么通货膨胀下降，不等于商品价格回到过去？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_187",
+    "type": "post",
+    "text": "一个国家人口减少，长期可能带来哪些连锁影响？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_188",
+    "type": "post",
+    "text": "为什么同一种商品在不同国家价格差异会非常大？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_189",
+    "type": "post",
+    "text": "历史上的大多数泡沫，在形成早期有哪些共同特征？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_190",
+    "type": "post",
+    "text": "为什么人们在经济不确定时更倾向于储蓄而不是消费？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_191",
+    "type": "post",
+    "text": "请比较自由、稳定和效率之间常见的现实冲突。\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_192",
+    "type": "post",
+    "text": "如果所有人都追求个人最优，为什么结果可能不是整体最优？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_193",
+    "type": "post",
+    "text": "为什么谣言在不确定时期更容易流行？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_194",
+    "type": "post",
+    "text": "技术让沟通更方便后，人际关系为什么未必变得更深？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_195",
+    "type": "post",
+    "text": "怎样判断一个流行观点是真有证据，还是只是重复次数很多？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_196",
+    "type": "post",
+    "text": "为什么群体讨论有时会让成员的观点变得更极端？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_197",
+    "type": "post",
+    "text": "如果只能给二十岁的自己一句建议，你会说什么？请说明理由。\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_198",
+    "type": "post",
+    "text": "人生中哪些选择看似可以重来，实际机会成本最高？\n\n#蓝v交友 #认识新朋友 #真诚交友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_199",
+    "type": "post",
+    "text": "怎样判断自己是在坚持，还是只是不愿承认方向错了？\n\n#蓝v交友 #蓝V互动 #交个朋友\n\n@grok",
+    "enabled": true
+  },
+  {
+    "id": "post_200",
+    "type": "post",
+    "text": "一个人真正成熟的标志，更可能是得到什么还是放下什么？\n\n#蓝v交友 #互相交流 #评论区见\n\n@grok",
+    "enabled": true
+  }
+]

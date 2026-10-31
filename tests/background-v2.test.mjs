@@ -1,0 +1,21 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+const events={};let stored={};const evt=n=>({addListener:f=>events[n]=f});
+globalThis.chrome={storage:{local:{get:async key=>({[key]:structuredClone(stored[key])}),set:async data=>{Object.assign(stored,structuredClone(data));}}},runtime:{id:'test',getURL:p=>'chrome-extension://test/'+p,onMessage:evt('message'),onInstalled:evt('install'),onStartup:evt('startup'),openOptionsPage:async()=>{}},tabs:{onRemoved:evt('removed')},action:{onClicked:evt('click')},alarms:{clear:async()=>{}}};
+await import('../background.js');
+const sender={id:'test',url:'https://x.com/home',tab:{id:1}},panel={id:'test',url:'chrome-extension://test/panel.html'};
+const send=(msg,who=sender)=>new Promise(resolve=>events.message(msg,who,resolve));
+const rt=(action,extra={})=>send({kind:'RUNTIME',module:'posting',action,...extra});
+const tick=()=>new Promise(r=>setTimeout(r,20));
+test('integration: migration, simultaneous edits, start, stop, stale completion, restart',async()=>{
+ stored.app={rows:[{id:'custom',type:'post',text:'mine',enabled:true}],logs:[]};events.install();await tick();assert.equal(stored.app.rows.length,357);assert.equal(stored.app.replyFollowBackV1Loaded,true);assert.ok(stored.app.rows.filter(r=>r.type==='reply').every(r=>r.text.endsWith('\n请回关我')));assert.equal(stored.app.existingPostsRewriteV1Loaded,true);assert.equal(stored.app.rows.filter(r=>r.id!=='post_100'&&/^(?:post_00[1-9]|post_0[1-4][0-9]|post_1\d\d|post_20[0-6])$/.test(r.id)).length,155);assert.equal(stored.app.lanvPostsV1Loaded,true);assert.equal(stored.app.rows.filter(r=>r.id.startsWith('lanv_post_')).length,50);assert.equal(stored.app.postTopicsV1Loaded,true);const posts=stored.app.rows.filter(r=>r.type==='post'&&r.id!=='custom');assert.ok(posts.every(r=>r.text.includes('#蓝v交友')&&(r.text.match(/#\S+/g)||[]).length===3));
+ const results=await Promise.all(['a','b'].map(id=>send({kind:'LIBRARY_OP',op:{action:'upsert',id,row:{id,type:'post',text:id},expected:null}},panel)));
+ assert.ok(results.every(r=>r.ok));assert.ok(stored.app.rows.some(r=>r.id==='a'));assert.ok(stored.app.rows.some(r=>r.id==='b'));
+ const started=await rt('begin',{account:'/me'});assert.equal(started.ok,true);const runId=started.state.runId;
+ assert.equal((await send({kind:'RUNTIME',module:'interaction',action:'begin',account:'/me'},{...sender,tab:{id:2}})).ok,false);
+ assert.equal((await send({kind:'RUNTIME',module:'cleanup',action:'begin',account:'/me'})).ok,false);
+ await rt('patch',{runId,patch:{phase:'submitting',text:'proof'}});await rt('stop');assert.equal(stored.xAssistantPostingV1.phase,'unknown');
+ assert.equal((await rt('patch',{runId,patch:{phase:'confirmed'}})).ok,false);assert.equal((await rt('begin',{account:'/me'})).ok,false);
+ events.startup();await tick();assert.equal(stored.xAssistantPostingV1.phase,'unknown');assert.equal(stored.app.rows.find(r=>r.id==='custom').text,'mine');
+});
+test('untrusted page cannot mutate library, unknown command fails',async()=>{assert.equal((await send({kind:'LIBRARY_OP',op:{action:'merge',rows:[]}})).ok,false);assert.equal((await send({kind:'RUNTIME',module:'evil',action:'begin'})).ok,false);});
+test('closing owner tab stops countdown',async()=>{stored.xAssistantPostingV1={active:true,owner:1,phase:'waiting'};events.removed(1);await tick();assert.equal(stored.xAssistantPostingV1.active,false);});

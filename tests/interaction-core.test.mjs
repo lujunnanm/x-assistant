@@ -24,6 +24,25 @@ test('each random timer uses hundredth-second precision inside its inclusive ran
 });
 
 test('editor text preserves visual line breaks used by the X composer',()=>{
- assert.equal(core.editorText({innerText:'第一句\r\n尽快回关\n',textContent:'第一句尽快回关'}),'第一句\n尽快回关');
+ assert.equal(core.editorText({innerText:'第一句\r\n交个朋友呀\n',textContent:'第一句交个朋友呀'}),'第一句\n交个朋友呀');
  assert.equal(core.editorText({textContent:'单行内容'}),'单行内容');
+});
+
+test('Draft editor block reading preserves a blank line without innerText extra newline',()=>{
+ const node={innerText:'正文\n\n\n#话题',querySelectorAll:()=>[{textContent:'正文'},{textContent:''},{textContent:'#话题'}]};
+ assert.equal(core.editorText(node),'正文\n\n#话题');
+ assert.notEqual(core.editorText(node),'正文\n#话题');
+});
+
+test('automatic following defaults on and honors persisted false',()=>{
+ assert.equal(core.autoFollowEnabled(undefined),true);
+ assert.equal(core.autoFollowEnabled(true),true);
+ assert.equal(core.autoFollowEnabled(false),false);
+});
+
+test('disabled following accepts only posts strictly above 5000 views',()=>{
+ assert.equal(core.highExposure(5001),true);
+ assert.equal(core.highExposure(5000),false);
+ assert.equal(core.highExposure(4999),false);
+ assert.equal(core.highExposure(null),false);
 });

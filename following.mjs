@@ -12,7 +12,7 @@ export async function collectFollowing(own,scanId){
    const author=handles[0],key=author.toLowerCase();seen.add(key);found.push({key,handle:'@'+author,displayName:cell.innerText.split('\n')[0],lastSeenAt:new Date().toISOString(),source:'following-list',owner:own.slice(1)});
   }
   // Merge into latest state so unrelated records are not replaced.
-  const db=(await chrome.storage.local.get(DB))[DB]||{handles:{}};for(const row of found)db.handles[row.key]={...db.handles[row.key],...row};await chrome.storage.local.set({[DB]:db});
+  const result=await chrome.runtime.sendMessage({kind:'FOLLOW_MERGE',rows:found});if(!result?.ok)throw Error(result?.error||'保存关注列表失败');
   await saveStatus(`正在读取：本次识别 ${seen.size} 个，第 ${page+1} 屏`,true);
   const fingerprint=[...seen].join(',')+'|'+document.documentElement.scrollHeight+'|'+Math.round(scrollY);
   stable=fingerprint===previous?stable+1:0;previous=fingerprint;

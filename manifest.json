@@ -1,15 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "X 文案助手 · 验证版",
-  "version": "0.12.5",
-  "description": "X 页面悬浮互动循环：按关注状态比例自动评价、点赞和关注。",
+  "name": "X 文案助手",
+  "version": "2.0.21",
+  "description": "X 页面悬浮互动循环：可按关注状态或高曝光条件自动评价、点赞和关注。",
   "permissions": [
     "storage",
     "alarms",
     "activeTab",
-    "scripting",
-    "offscreen",
-    "clipboardWrite"
+    "scripting"
   ],
   "background": {
     "service_worker": "background.js",
@@ -20,7 +18,8 @@
   },
   "options_page": "panel.html",
   "host_permissions": [
-    "https://x.com/*"
+    "https://x.com/*",
+    "http://127.0.0.1/*"
   ],
   "content_scripts": [
     {
@@ -29,9 +28,14 @@
       ],
       "js": [
         "interaction-core.js",
+        "runtime-client.js",
         "coordination.js",
+        "posting-receipt.js",
+        "cleanup-core.js",
+        "reply-cleanup.js",
         "overlay.js",
-        "posting.js"
+        "posting.js",
+        "cleanup.js"
       ],
       "css": [
         "overlay.css"

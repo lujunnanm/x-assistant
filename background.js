@@ -1,4 +1,5 @@
-import {generateReply,generatePost} from './ai-client.mjs';
+import {POST_SCHEDULE_KEY,restoreSchedule,confirmSchedule,scheduledStart} from './posting-schedule.mjs';
+import {generateReply,generatePost,generateNotificationReply} from './ai-client.mjs';
 import builtinLibrary from './builtin-library.mjs';
 import lanvPosts from './lanv-posts-50.mjs';
 import rewrittenPosts from './rewritten-existing-posts-155.mjs';
@@ -36,12 +37,13 @@ async function handle(msg,sender){
  const key=KEYS[msg.module],s=await read(key)||{},owner=sender.tab.id;
  if(msg.action==='get')return s;
  let next;
- if(msg.action==='begin'){
-  if(msg.module!=='cleanup'&&!(await getApp()).rows.some(r=>r.enabled&&r.type===(msg.module==='posting'?'post':'reply')))throw Error('文案库为空或全部停用');
+ if(msg.action==='begin'||msg.action==='prepare'){
+  if(!['cleanup','notifications'].includes(msg.module)&&!(await getApp()).rows.some(r=>r.enabled&&r.type===(msg.module==='posting'?'post':'reply')))throw Error('文案库为空或全部停用');
   const states=await Promise.all(Object.entries(KEYS).filter(([name])=>name!==msg.module).map(async([name,otherKey])=>[name,await read(otherKey)||{}]));
   if(states.some(([name,state])=>state.active&&(msg.module==='cleanup'||name==='cleanup')))throw Error('清理模块不能与互动或发帖同时运行');
   const other=states.map(([,state])=>state).find(state=>state.active)||{};
   next=beginState(s,other,{owner,account:msg.account,resume:msg.resume});
+  if(msg.action==='prepare')return {account:next.account,owner:next.owner};
  }else if(msg.action==='stop')next=stopState(s);
  else if(msg.action==='resolve')next=resolveState(s,msg);
  else if(msg.action==='patch')next=patchState(s,msg.patch,{owner,runId:msg.runId});
@@ -51,23 +53,37 @@ async function handle(msg,sender){
   const chosen=reserveRow(s,(await getApp()).rows,msg.module==='posting'?'post':'reply');
   await write(key,chosen.state);return chosen.row;
  }else throw Error('未知运行操作');
- await write(key,next);
+ if(msg.module==='posting'&&(next.account||s.account)){
+  const schedules=await read(POST_SCHEDULE_KEY)||{};
+  let schedule=restoreSchedule(schedules,next.account||s.account,s);
+  if(msg.action==='patch'&&msg.patch?.phase==='confirmed'){
+   if(msg.patch.receipt?.kind!=='confirmed')throw Error('发帖成功必须有平台回执');
+   // Idempotent receipt replay cannot move the deadline or count as another post.
+   schedule=schedule.confirmedRunId===s.runId&&schedule.confirmedSubmittedAt===s.submittedAt?schedule:{...confirmSchedule(),confirmedRunId:s.runId,confirmedSubmittedAt:s.submittedAt};
+   next.nextAt=schedule.nextPostAt;
+  }else if(msg.action==='begin'){
+   next.nextAt=scheduledStart(schedule);schedule.nextPostAt=next.nextAt;
+  }else if(msg.action==='patch'&&Number.isFinite(next.nextAt))schedule.nextPostAt=next.nextAt;
+  next.lastPostedAt=schedule.lastPostedAt;next.nextPostAt=schedule.nextPostAt;
+  schedules[(next.account||s.account).toLowerCase()]=schedule;
+  await chrome.storage.local.set({[key]:next,[POST_SCHEDULE_KEY]:schedules});
+ }else await write(key,next);
  if(['begin','stop','resolve'].includes(msg.action)||msg.patch?.error||msg.patch?.phase==='confirmed')await log(`${msg.module} · ${next.phase}${next.error?' · '+next.error:''}`);
  return next;
 }
 chrome.runtime.onMessage.addListener((msg,sender,respond)=>{
  if(sender.id!==chrome.runtime.id)return;
- if(msg?.kind==='AI_REPLY'||msg?.kind==='AI_POST'){
+ if(msg?.kind==='AI_REPLY'||msg?.kind==='AI_POST'||msg?.kind==='AI_NOTIFICATION_REPLY'){
   (async()=>{
    if(!Number.isInteger(sender.tab?.id)||!/^https:\/\/x\.com\//.test(sender.url||''))throw Error('无效 AI 请求来源');
-   const key=msg.kind==='AI_POST'?KEYS.posting:KEYS.interaction;
+   const key=msg.kind==='AI_NOTIFICATION_REPLY'?KEYS.notifications:msg.kind==='AI_REPLY'?KEYS.interaction:KEYS.posting;
    const s=await read(key);patchState(s,{}, {owner:sender.tab.id,runId:msg.runId});
    let result;
    if(msg.kind==='AI_POST'){
     const row=(await getApp()).rows.find(r=>r.id===msg.rowId&&r.type==='post'&&r.enabled);
     if(!row||s.lastId!==row.id)throw Error('发帖参考不匹配');
     result=await generatePost(row);
-   }else result=await generateReply(msg.post);
+   }else result=await (msg.kind==='AI_NOTIFICATION_REPLY'?generateNotificationReply:generateReply)(msg.post);
    patchState(await read(key),{}, {owner:sender.tab.id,runId:msg.runId});
    return result;
   })().then(state=>respond({ok:true,state})).catch(()=>respond({ok:false,error:'AI 文案生成失败或任务已停止；未发送，请检查本地服务'}));return true;
@@ -85,9 +101,10 @@ async function recover(install=false){
  app.schemaVersion=2;app.running=false;app.nextAt=null;
  await write('app',app);
  for(const key of Object.values(KEYS))await write(key,stopState(await read(key)));
+ const schedule=await read('xAssistantSchedulerV3');if(schedule)await write('xAssistantSchedulerV3',{...schedule,active:false});
  const scan=await read('xAssistantFollowingScanV1');if(scan)await write('xAssistantFollowingScanV1',{...scan,active:false,message:'浏览器或扩展已重启，请重新读取'});
  await chrome.alarms.clear('x-assistant-loop');
- await log('v2 状态已恢复；用户文案保留，循环保持停止，未知发送记录保留');
+ await log('v3 状态已恢复；用户文案保留，循环保持停止，未知发送记录保留');
 }
 chrome.runtime.onInstalled.addListener(()=>serial(()=>recover(true)).catch(console.error));
 chrome.runtime.onStartup.addListener(()=>serial(()=>recover()).catch(console.error));

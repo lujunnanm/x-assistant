@@ -1,5 +1,5 @@
 import {validateRows,pick} from './core.mjs';
-export const KEYS={interaction:'xAssistantRuntimeV1',posting:'xAssistantPostingV1',cleanup:'xAssistantCleanupV1'};
+export const KEYS={notifications:'xAssistantNotificationsRuntimeV1',interaction:'xAssistantRuntimeV1',posting:'xAssistantPostingV1',cleanup:'xAssistantCleanupV1'};
 export const uncertain=s=>['submitting','deleting','unknown'].includes(s?.phase);
 export function stopState(s={}){return {...s,active:false,nextAt:null,phase:uncertain(s)?'unknown':'stopped',revision:(s.revision||0)+1};}
 export function beginState(s={},other={}, {owner,account,resume=false,now=Date.now(),id=crypto.randomUUID()}){

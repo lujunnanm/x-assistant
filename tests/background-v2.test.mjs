@@ -19,3 +19,24 @@ test('integration: migration, simultaneous edits, start, stop, stale completion,
 });
 test('untrusted page cannot mutate library, unknown command fails',async()=>{assert.equal((await send({kind:'LIBRARY_OP',op:{action:'merge',rows:[]}})).ok,false);assert.equal((await send({kind:'RUNTIME',module:'evil',action:'begin'})).ok,false);});
 test('closing owner tab stops countdown',async()=>{stored.xAssistantPostingV1={active:true,owner:1,phase:'waiting'};events.removed(1);await tick();assert.equal(stored.xAssistantPostingV1.active,false);});
+test('module prepare validates ownership and conflicts without creating a run',async()=>{
+ for(const key of ['xAssistantPostingV1','xAssistantRuntimeV1','xAssistantCleanupV1','xAssistantNotificationsRuntimeV1'])stored[key]={active:false,phase:'stopped'};
+ const before=structuredClone(stored.xAssistantNotificationsRuntimeV1);
+ const r=await send({kind:'RUNTIME',module:'notifications',action:'prepare',account:'/me'});
+ assert.equal(r.ok,true);assert.deepEqual(stored.xAssistantNotificationsRuntimeV1,before);
+ stored.xAssistantPostingV1={active:true,owner:2,phase:'waiting'};
+ assert.equal((await send({kind:'RUNTIME',module:'notifications',action:'prepare',account:'/me'})).ok,false);
+});
+test('posting confirmation and schedule persist atomically through stop, restart and new run',async()=>{
+ for(const key of ['xAssistantPostingV1','xAssistantRuntimeV1','xAssistantCleanupV1','xAssistantNotificationsRuntimeV1'])stored[key]={active:false,phase:'stopped'};
+ stored.xAssistantPostSchedulesV1={};
+ const s=await rt('begin',{account:'/me'}),runId=s.state.runId;
+ await rt('patch',{runId,patch:{phase:'submitting',submittedAt:new Date().toISOString()}});
+ const confirmed=await rt('patch',{runId,patch:{phase:'confirmed',receipt:{kind:'confirmed'},completed:1}});
+ const next=confirmed.state.nextPostAt,last=confirmed.state.lastPostedAt;
+ assert.ok(next-last>=1800000&&next-last<=3000000);
+ await rt('stop');assert.equal(stored.xAssistantPostingV1.nextPostAt,next);
+ events.startup();await tick();
+ const again=await rt('begin',{account:'/me'});assert.equal(again.state.nextAt,next);assert.equal(again.state.lastPostedAt,last);
+ await rt('stop');
+});

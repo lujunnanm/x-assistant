@@ -12,6 +12,15 @@ export async function generateReply(post,fetcher=fetch){
  return validateReply(await response.json(),post.id);
 }
 
+// The shared bridge still appends the proactive-interaction footer.
+// Notification replies keep only the validated, contextual response body.
+export async function generateNotificationReply(post,fetcher=fetch){
+ const result=await generateReply(post,fetcher);
+ if(result.action==='skip')return result;
+ const text=result.text.replace(/(?:\s*(?:交个朋友呀?|请回关我)[\s，,。.!！]*)+$/u,'').trim();
+ return validateReply({...result,text},post.id);
+}
+
 export function validatePost(value,row){
  if(value?.action==='skip')return {action:'skip',text:'',rowId:row.id};
  const body=value?.text;

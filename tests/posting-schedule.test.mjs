@@ -1,0 +1,10 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {restoreSchedule,confirmSchedule,scheduledStart} from '../posting-schedule.mjs';
+test('confirmed receipt records both timestamps with 30–50 minute random range',()=>{assert.deepEqual(confirmSchedule(1000,()=>0),{lastPostedAt:1000,nextPostAt:1801000});assert.equal(confirmSchedule(1000,()=>1).nextPostAt,3001000);});
+test('restart preserves future deadline, never resets to immediate first post',()=>{const db={'/me':confirmSchedule(1000,()=>0.5)};const s=restoreSchedule(db,'/ME',{},50000);assert.equal(s.lastPostedAt,1000);assert.equal(scheduledStart(s,50000),2401000);});
+test('overdue deadline starts immediately without catch-up burst',()=>{assert.equal(scheduledStart({nextPostAt:1000},5000000),5000000);});
+test('legacy successful post with cleared nextAt migrates conservatively to 50 minutes',()=>{const s=restoreSchedule({},'/me',{account:'/me',submittedAt:'2026-10-31T10:00:00Z',receipt:{kind:'confirmed'},nextAt:null});assert.equal(s.nextPostAt,Date.parse('2026-10-31T10:50:00Z'));});
+test('schedules are isolated by account and failed attempts do not migrate as success',()=>{const s=restoreSchedule({'/other':{nextPostAt:99999999}},'/me',{account:'/other',submittedAt:'2026-10-31T10:00:00Z',receipt:{kind:'confirmed'}},1000);assert.equal(s.nextPostAt,31000);assert.equal(s.lastPostedAt,null);});
+
+test('upcoming deadline is not postponed by an extra startup buffer',()=>{assert.equal(scheduledStart({nextPostAt:6000},1000),6000);assert.equal(scheduledStart({nextPostAt:1000},1000),1000);assert.equal(scheduledStart({},1000),31000);});
+test('driver does not add another thirty seconds after acquiring the page lock',async()=>{const {readFile}=await import('node:fs/promises');const s=await readFile(new URL('../posting.js',import.meta.url),'utf8');assert.ok(!s.includes('Date.now()+30000'));assert.ok(s.includes('deadline=Math.max(deadline,Date.now());'));assert.ok(s.includes('deadline=(await read()).nextAt;'));});

@@ -33,3 +33,18 @@
 
 #x-assistant-float .follow-option{grid-column:1/-1;grid-row:2;display:flex;align-items:center;gap:10px;font-size:19px;cursor:pointer;padding-left:4px}
 #x-assistant-float .follow-option input{width:23px;height:23px;accent-color:#8b3268;cursor:pointer}
+/* v3 coordinated switch and passive, labelled module indicators. */
+#x-assistant-float .master-control{display:flex;align-items:center;gap:18px;margin:0 10px 16px}
+#x-assistant-float .master-control button{border:1px solid #71ccff;border-radius:22px;padding:12px 22px;color:white;background:linear-gradient(145deg,#4bbcff,#2475ff);font-weight:650}
+#x-assistant-float .master-control button[aria-checked=true]{background:linear-gradient(135deg,#a56cbd,#754da6);border-color:#bfa2d7}
+#x-assistant-float .master-control span{font-size:18px;max-width:240px}
+#x-assistant-float .state-lamp{display:flex;align-items:center;justify-content:center;gap:12px;font-size:19px;color:#744b7d}
+#x-assistant-float .state-lamp::before{content:'';width:15px;height:15px;border-radius:50%;background:#afa5b4;box-shadow:0 0 0 5px #ffffff70}
+#x-assistant-float .state-lamp[data-state=on]::before{background:#19b99c;box-shadow:0 0 12px #19b99c80}
+#x-assistant-float .state-lamp[data-state=wait]::before{background:#edb647}
+
+#x-assistant-float .post-schedule{grid-column:1/-1;font-size:16px;color:#744b7d;text-align:center;font-variant-numeric:tabular-nums}
+
+/* 神圣计划 brand mark; existing panel layout retained. */
+#x-assistant-float strong::before{content:none}
+#x-assistant-float .brand-icon{width:44px;height:44px;object-fit:contain;flex:none}

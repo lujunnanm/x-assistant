@@ -27,5 +27,7 @@ test('disabled following ignores follow state and requires more than 5000 views'
  assert.ok(source.includes("if(!followEnabled){if(core.highExposure(info.views,5000))return{...info,followState:'unrestricted'};continue;}"));
  assert.ok(source.includes("desired=followEnabled?core.desiredAuthorType(r.cycleIndex):'high_exposure'"));
  assert.ok(source.includes("follow:followEnabled?(desired==='followed'?'skipped':'pending'):'skipped_disabled'"));
- assert.ok(source.includes("randomWait(followEnabled?40:10,followEnabled?60:20,signal,'本帖完成，等待寻找下一帖')"));
+ assert.ok(source.includes("randomWait(followEnabled?40:5,followEnabled?60:10,signal,"));
 });
+
+test("reply-to-like cooldown respects auto-follow setting",()=>{assert.ok(source.includes("randomWait(followEnabled?5:3,followEnabled?10:5,signal,\'评价完成，等待点赞\')"));});

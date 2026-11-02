@@ -51,7 +51,7 @@ class Handler(BaseHTTPRequestHandler):
         if not self.valid():return self.respond(403,{'error':'禁止访问'})
         if self.path=='/health':return self.respond(200,{'ready':bool(KEY),'model':'deepseek-flash'})
         if self.path!='/':return self.respond(404,{'error':'不存在'})
-        self.respond(200,'''<!doctype html><meta charset="utf-8"><title>DeepSeek 本地设置</title><h1>DeepSeek 密钥设置</h1><p>密钥只保存在本地服务内存，重启需重新输入。不会写入插件、日志或聊天。</p><form method="post" action="/configure"><input type="hidden" name="csrf" value="'''+TOKEN+'''"><label>API Key <input type="password" name="key" required autocomplete="off" size="55"></label><button>保存到内存</button></form><p>保存后请回到聊天告诉我“已保存”。下一步仅测试生成，不发布回复。</p>''',True)
+        self.respond(200,'''<!doctype html><meta charset="utf-8"><title>DeepSeek 本地设置</title><h1>DeepSeek 密钥设置</h1><p>旧版本地服务设置；新版请在插件设置中保存密钥。</p><form method="post" action="/configure"><input type="hidden" name="csrf" value="'''+TOKEN+'''"><label>API Key <input type="password" name="key" required autocomplete="off" size="55"></label><button>保存到内存</button></form><p>保存后请回到聊天告诉我“已保存”。下一步仅测试生成，不发布回复。</p>''',True)
     def do_POST(self):
         global KEY
         if not self.valid():return self.respond(403,{'error':'禁止访问'})

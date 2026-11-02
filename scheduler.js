@@ -19,7 +19,7 @@
   if(!controller){for(const n in lamps)show(n,'已停止','off');return;}
   show('posting',postingBusy?'正在发帖':'冷却中',postingBusy?'on':'wait');
   show('interaction',I.isRunning()?'运行中':state.mode==='replies'?'休息中':'等待发帖',I.isRunning()?'on':'wait');
-  show('notifications',replyTask?'回帖中':state.mode==='interaction'?'等待休息':state.repliesDone?'本轮已完成':'暂停等待',replyTask?'on':'wait');
+  show('notifications',replyTask?'回帖中':state.mode==='interaction'?'等待休息':state.repliesDone?'本轮休息':'暂停等待',replyTask?'on':'wait');
   summary.textContent=state.mode==='interaction'?`互动剩余 ${remaining(C.WORK-state.workMs)}`:`休息剩余 ${remaining(state.restUntil-Date.now())}`;
  }
  async function pauseInteraction(){if(I.isRunning())await I.pause();}
@@ -34,6 +34,7 @@
    if(!lock)throw Error('协同正在另一个 X 标签页运行');
    let self;for(let i=0;i<150;i++){api.check(signal);self=globalThis.XAssistantEntry.account();if(/^\/[A-Za-z0-9_]{1,15}$/.test(self||''))break;await api.sleep(100,signal);}
    if(!/^\/[A-Za-z0-9_]{1,15}$/.test(self||''))throw Error('账号加载超时，请刷新后重试');
+   summary.textContent='正在检查 DeepSeek 连接';await api.call({kind:'AI_CHECK'});api.check(signal);
    if(!resume){for(const name of ['posting','interaction','notifications'])if(!await api.review(name,self))throw Error('未完成旧发送记录核对');}
    for(const name of ['posting','interaction','notifications'])await api.runtime(name,'prepare',{account:self});
    const previous=(await chrome.storage.local.get(KEY))[KEY],post=await api.runtime('posting','get');
@@ -60,7 +61,7 @@
         await globalThis.XAssistantEntry.enter('notifications',signal);
         const old=await api.runtime('notifications','get');const r=await api.runtime('notifications','begin',{account:state.account,resume:!!old.active});replyRun=r.runId;
         const result=await globalThis.XAssistantNotifications.scan({account:state.account,runId:replyRun,signal,show:t=>root.querySelector('[data-status="notifications"]').textContent=t,yieldAt:deadline});
-        if(result?.complete)state.repliesDone=true;
+        if(result?.complete||result?.rest)state.repliesDone=true;
         await api.runtime('notifications','patch',{runId:replyRun,patch:{phase:'waiting',nextAt:null}});
        });
       })().catch(e=>{if(!signal.aborted){state.error=e.message;own.abort();}}).finally(()=>{replyTask=null;});

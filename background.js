@@ -1,3 +1,5 @@
+import {verifyCredential,API_KEY_STORAGE} from './deepseek-direct.mjs';
+import {recoverGeneration} from './ai-recovery.mjs';
 import {POST_SCHEDULE_KEY,restoreSchedule,confirmSchedule,scheduledStart} from './posting-schedule.mjs';
 import {generateReply,generatePost,generateNotificationReply} from './ai-client.mjs';
 import builtinLibrary from './builtin-library.mjs';
@@ -16,6 +18,11 @@ async function handle(msg,sender){
  const page=Number.isInteger(sender.tab?.id)&&/^https:\/\/x\.com\//.test(sender.url||'');
  if(!panel&&!page)throw Error('无效消息来源');
  if(msg.kind==='PING')return null;
+ if(msg.kind==='AI_CHECK'){
+  try{await verifyCredential((await chrome.storage.local.get(API_KEY_STORAGE))[API_KEY_STORAGE]);await write('xAssistantAIStatusV1',{error:null,time:Date.now()});return {ready:true};}
+  catch(e){await write('xAssistantAIStatusV1',{module:'preflight',error:e.message,attempt:1,retrying:false,time:Date.now()});throw e;}
+ }
+
  if(msg.kind==='GET'&&panel)return getApp();
  if(msg.kind==='LIBRARY_OP'&&panel){const app=libraryOperation(await getApp(),msg.op);await write('app',app);await log('文案库更新：'+msg.op.action);return getApp();}
  if(msg.kind==='OPEN_PANEL'&&page){await chrome.tabs.create({url:chrome.runtime.getURL('panel.html')+'#'+(['library','following','logs'].includes(msg.section)?msg.section:'library')});return null;}
@@ -78,15 +85,20 @@ chrome.runtime.onMessage.addListener((msg,sender,respond)=>{
    if(!Number.isInteger(sender.tab?.id)||!/^https:\/\/x\.com\//.test(sender.url||''))throw Error('无效 AI 请求来源');
    const key=msg.kind==='AI_NOTIFICATION_REPLY'?KEYS.notifications:msg.kind==='AI_REPLY'?KEYS.interaction:KEYS.posting;
    const s=await read(key);patchState(s,{}, {owner:sender.tab.id,runId:msg.runId});
+   const recover=(generate,binding)=>recoverGeneration(generate,{binding,
+    check:async()=>patchState(await read(key),{}, {owner:sender.tab.id,runId:msg.runId}),
+    report:entry=>serial(async()=>{await write('xAssistantAIStatusV1',{module:msg.kind,error:entry.reason,attempt:entry.attempt,retrying:entry.retrying,time:Date.now()});await log(`${msg.kind} · AI 第 ${entry.attempt} 次失败 · ${entry.reason} · ${entry.retrying?'稍后重试':'本次生成失败，未发送'}`);})
+   });
    let result;
    if(msg.kind==='AI_POST'){
     const row=(await getApp()).rows.find(r=>r.id===msg.rowId&&r.type==='post'&&r.enabled);
     if(!row||s.lastId!==row.id)throw Error('发帖参考不匹配');
-    result=await generatePost(row);
-   }else result=await (msg.kind==='AI_NOTIFICATION_REPLY'?generateNotificationReply:generateReply)(msg.post);
+    result=await recover(()=>generatePost(row),{rowId:row.id});
+   }else result=await recover(()=>(msg.kind==='AI_NOTIFICATION_REPLY'?generateNotificationReply:generateReply)(msg.post),{postId:msg.post?.id});
    patchState(await read(key),{}, {owner:sender.tab.id,runId:msg.runId});
+   if(!result.skippedGenerationError)await serial(()=>write('xAssistantAIStatusV1',{error:null,time:Date.now()}));
    return result;
-  })().then(state=>respond({ok:true,state})).catch(()=>respond({ok:false,error:'AI 文案生成失败或任务已停止；未发送，请检查本地服务'}));return true;
+  })().then(state=>respond({ok:true,state})).catch(e=>respond({ok:false,error:e.message||'任务已停止；未发送'}));return true;
  }
  serial(()=>handle(msg||{},sender)).then(state=>respond({ok:true,state})).catch(e=>respond({ok:false,error:e.message}));return true;
 });

@@ -119,7 +119,7 @@
      show('DeepSeek 正在生成发帖文案');await patch({phase:'generating',rowId:row.id});
      const generated=await api.call({kind:'AI_POST',runId,rowId:row.id});check(signal);
      if(generated.rowId!==row.id)throw Error('AI 发帖文案与参考条目不匹配');
-     if(generated.action==='skip')throw Error('AI 跳过此主题，发帖已停止；未发送');
+     if(generated.action==='skip'){show('AI 跳过此主题，等待下轮；未发送');deadline=Date.now()+Math.round(core.randomSeconds(1800,3000)*1000);return;}
      if(generated.action!=='send_post')throw Error('AI 未返回有效发帖指令');
      if(await waitAccount(signal)!==account)throw Error('生成期间账号发生变化，未发送');
      try{await publish({...row,text:generated.text},signal,runId);}catch(e){

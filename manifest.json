@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "神圣计划",
-  "version": "3.0.6",
+  "version": "3.0.15",
   "description": "X 页面悬浮互动循环：可按关注状态或高曝光条件自动评价、点赞和关注。",
   "permissions": [
     "storage",
@@ -25,7 +25,7 @@
   "options_page": "panel.html",
   "host_permissions": [
     "https://x.com/*",
-    "http://127.0.0.1/*"
+    "https://api.deepseek.com/*"
   ],
   "content_scripts": [
     {

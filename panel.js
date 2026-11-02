@@ -1,3 +1,4 @@
+import {verifyCredential} from './deepseek-direct.mjs';
 import {collectFollowing} from './following.mjs';
 const $=id=>document.getElementById(id);let state,editing=null,busy=false,lastRows=null;
 async function send(kind,extra={}){const r=await chrome.runtime.sendMessage({kind,...extra});if(!r?.ok)throw Error(r?.error||'后台未响应');return r.state;}
@@ -33,3 +34,9 @@ renderFollowing();
 if(location.hash==='#library')document.getElementById('library').scrollIntoView();
 if(location.hash==='#following')document.getElementById('following').scrollIntoView();
 if(location.hash==='#logs'){const block=document.getElementById('logs-section');block.querySelector('details').open=true;block.scrollIntoView();}
+
+const API_KEY_STORAGE='xAssistantDeepSeekKeyV1';
+async function keyStatus(){const d=await chrome.storage.local.get(API_KEY_STORAGE);$('api-status').textContent=d[API_KEY_STORAGE]?'已有本地密钥；启动前会再次检查 API 认证，重启无需重填。':'未配置，请保存 API 密钥。';}
+$('api-form').onsubmit=action(async()=>{const value=$('api-key').value.trim();if(value.length<16||value.length>256||/\s/.test(value))throw Error('密钥格式无效');$('api-status').textContent='正在验证 API 密钥…';try{await verifyCredential(value);}catch(e){$('api-status').textContent=e.message+'；新密钥未保存';throw e;}await chrome.storage.local.set({[API_KEY_STORAGE]:value});await chrome.storage.local.set({xAssistantAIStatusV1:{error:null,time:Date.now()}});$('api-key').value='';await keyStatus();note('密钥已通过 API 认证检查并保存到插件本地存储');});
+$('api-remove').onclick=action(async()=>{await chrome.storage.local.remove(API_KEY_STORAGE);await keyStatus();note('插件密钥已删除');});
+keyStatus().catch(()=>note('无法读取密钥配置状态'));

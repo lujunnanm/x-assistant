@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
 
 const source=await readFile(new URL('../interaction-core.js',import.meta.url),'utf8');
-const context={crypto:{getRandomValues:a=>{a[0]=0;return a;}}};context.globalThis=context;vm.runInNewContext(source,context);
+const context={URL,crypto:{getRandomValues:a=>{a[0]=0;return a;}}};context.globalThis=context;vm.runInNewContext(source,context);
 const core=context.XAssistantCore;
 
 test('interaction ratio is three unfollowed then one followed',()=>{
@@ -45,4 +45,15 @@ test('disabled following accepts only posts strictly above 5000 views',()=>{
  assert.equal(core.highExposure(5000),false);
  assert.equal(core.highExposure(4999),false);
  assert.equal(core.highExposure(null),false);
+});
+
+test('interaction supports home and top/latest post searches, not people or media tabs',()=>{
+ for(const p of ['/home','/search?q=交友','/search?q=test&f=top','/search?q=test&f=live'])assert.equal(core.interactionPage(p),true);
+ for(const p of ['/search','/search?q=test&f=user','/search?q=test&f=image','/notifications','https://evil.example/home'])assert.equal(core.interactionPage(p),false);
+});
+
+test('fixed remaining cooldown preserves fractional milliseconds without invalid range',()=>{
+ for(const value of [0,0.001,3.141,12.349,29.999,45.001])assert.equal(core.randomSeconds(value,value),value);
+ assert.throws(()=>core.randomSeconds(-0.001,-0.001));
+ assert.throws(()=>core.randomSeconds(NaN,NaN));
 });

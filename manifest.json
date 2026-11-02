@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "神圣计划",
-  "version": "3.0.15",
-  "description": "X 页面悬浮互动循环：可按关注状态或高曝光条件自动评价、点赞和关注。",
+  "version": "4.0.14",
+  "description": "X 自动化运营控制台：发帖、互动、回帖协同调度，DeepSeek 同语种生成，发送回执核验与独立清理。",
   "permissions": [
     "storage",
     "alarms",
@@ -38,15 +38,19 @@
         "coordination.js",
         "posting-receipt.js",
         "cleanup-core.js",
-        "reply-cleanup.js",
         "scheduler-core.js",
         "popup-guard.js",
+        "task-utils.js",
+        "x-dom.js",
+        "reply-engine.js",
+        "notification-policy.js",
         "overlay.js",
         "notifications.js",
         "posting.js",
         "cleanup.js",
         "module-entry.js",
-        "scheduler.js"
+        "scheduler.js",
+        "compact-controls.js"
       ],
       "css": [
         "overlay.css"
@@ -64,7 +68,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "icons/icon-48.png"
+        "icons/icon-48.png",
+        "post-images/*.jpg"
       ],
       "matches": [
         "https://x.com/*"

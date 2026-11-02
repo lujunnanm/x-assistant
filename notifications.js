@@ -1,133 +1,175 @@
-(()=>{
- const api=globalThis.XAssistantRuntime,core=globalThis.XAssistantCore;
- const KEY='xAssistantNotificationRepliesV1';
- let account,runId,signal,db;
- const read=async()=> (await chrome.storage.local.get(KEY))[KEY]||{};
- const self=()=>document.querySelector('[data-testid="AppTabBar_Profile_Link"]')?.getAttribute('href');
- const check=s=>{if(s.aborted)throw new DOMException('已停止','AbortError');if(self()?.toLowerCase()!==account.toLowerCase())throw Error('账号变化，停止通知回复');};
- const wait=ms=>new Promise(r=>setTimeout(r,ms));
- const sleep=async(ms,s)=>{for(let end=Date.now()+ms;Date.now()<end;){check(s);await wait(Math.min(100,end-Date.now()));}check(s);};
- const waitFor=async(fn,count=80,delay=100,s=signal)=>{for(let i=0;i<count;i++){check(s);const value=fn();if(value)return value;await sleep(delay,s);}return null;};
- const patch=patch=>api.runtime('notifications','patch',{runId,patch});
- const normalized=v=>(v||'').replace(/\s+/g,' ').trim();
- const clickNative=b=>b.click();
- const innermostDialog=()=>[...document.querySelectorAll('[role="dialog"]')].find(d=>!d.querySelector('[role="dialog"]'));
- let ownedReplyDialog=null,ownedReplyText='',replySubmitted=false;
- const save=async()=>{const all=await read();all[account.toLowerCase()]=db;await chrome.storage.local.set({[KEY]:all});};
- const cleanup=()=>globalThis.XAssistantReplyCleanup.cleanup({dialog:ownedReplyDialog,submitted:replySubmitted,expectedText:ownedReplyText,editorText:core.editorText,hasDialog:()=>!!document.querySelector('[role="dialog"],[role="alertdialog"]'),sleep:wait,clearEditor:async e=>{e.focus();const selection=getSelection(),range=document.createRange();range.selectNodeContents(e);selection.removeAllRanges();selection.addRange(range);document.execCommand('delete',false);await wait(100);}});
- // User-authorized residual reply disposal; never discard an uncertain submission.
- const discardResidual=async()=>{if(replySubmitted)return false;return globalThis.XAssistantPopup.cancel();};
- let yieldDeadline=Infinity;
- const cutoff=()=>{if(Date.now()>=yieldDeadline){const e=Error('回帖已到交接时间');e.name='YieldError';throw e;}};
- const boundedAI=async message=>{
-  let timer,onAbort;
-  try{return await Promise.race([api.call(message),new Promise((resolve,reject)=>{
-   const fail=()=>{const e=Error('回帖已到交接时间');e.name='YieldError';reject(e);};
-   if(Number.isFinite(yieldDeadline))timer=setTimeout(fail,Math.max(0,yieldDeadline-Date.now()));
-   onAbort=()=>reject(new DOMException('已停止','AbortError'));signal.addEventListener('abort',onAbort,{once:true});
-  })]);}finally{clearTimeout(timer);if(onAbort)signal.removeEventListener('abort',onAbort);}
- };
- const navigate=async(path)=>{
-  check(signal);if(document.querySelector('[role="dialog"],[role="alertdialog"]'))throw Error('已有弹窗，通知检查暂停');
-  const a=await waitFor(()=>[...document.querySelectorAll('a[href]')].find(a=>a.getAttribute('href')===path),150);
-  if(!a)throw Error('通知导航入口不存在：'+path);
-  a.click();if(!await waitFor(()=>location.pathname===path,100))throw Error('通知导航失败');
-  await sleep(1500,signal);
- };
- const info=a=>{
-  const time=a.querySelector('time'),link=time?.closest('a'),m=link?.getAttribute('href')?.match(/^\/([A-Za-z0-9_]+)\/status\/(\d+)$/);
-  if(!m)return null;
-  const text=a.querySelector('[data-testid="tweetText"]')?.textContent||'';
-  // Reply metadata outside tweet text: a mention in the body is not a reply.
-  const addressed=[...a.querySelectorAll('div[dir]')].some(e=>/^(回复\s|Replying to\s)/i.test(e.textContent)&&e.textContent.length<250&&!e.querySelector('[data-testid="tweetText"]')&&[...e.querySelectorAll('a[href]')].some(l=>l.getAttribute('href')?.toLowerCase()===account.toLowerCase()));
-  return {article:a,id:m[2],author:m[1],text,time:time.dateTime,at:Date.parse(time.dateTime),addressed};
- };
- const relocate=row=>[...document.querySelectorAll('article[data-testid="tweet"]')].map(info).find(current=>current&&current.article.isConnected&&current.id===row.id&&current.author.toLowerCase()===row.author.toLowerCase()&&current.time===row.time&&normalized(current.text)===normalized(row.text)&&current.addressed);
- const recent=(at,now=Date.now())=>Number.isFinite(at)&&at>=now-86400000&&at<=now;
- const requireRecent=row=>{if(!recent(row.at)){const e=Error('评论已超过24小时，跳过');e.name='ExpiredReplyError';throw e;}};
- const excludedAuthor=author=>typeof author==='string'&&author.toLowerCase()==='grok';
- const sendReply=async(info,text,signal)=>{ownedReplyDialog=null;ownedReplyText='';replySubmitted=false;check(signal);cutoff();requireRecent(info);const current=relocate(info);if(!current)throw Error('通知目标已更新，请重新扫描');info=current;if(!info.article.isConnected||info.article.querySelector('time')?.getAttribute('datetime')!==info.time)throw Error('通知目标已更新，请重新扫描');if(document.querySelector('[role="dialog"]'))throw Error('页面已有弹窗');const buttons=[...info.article.querySelectorAll('[data-testid="reply"]')];if(buttons.length!==1)throw Error('未找到唯一回复按钮');clickNative(buttons[0]);const editor=await waitFor(()=>{const opened=innermostDialog();if(opened&&!ownedReplyDialog)ownedReplyDialog=opened;return ownedReplyDialog?.querySelector('[data-testid="tweetTextarea_0"][contenteditable="true"]');},150,100,signal),dialog=ownedReplyDialog;if(!editor||!dialog)throw Error('回复输入框未就绪');const targetMatches=()=>{const cards=[...dialog.querySelectorAll('[data-testid="tweet"]')];return cards.length===1&&[...cards[0].querySelectorAll('a[href]')].some(a=>{try{return new URL(a.href).pathname.toLowerCase()==='/'+info.author.toLowerCase()}catch{return false}})&&normalized(cards[0].querySelector('[data-testid="tweetText"]')?.textContent)===normalized(info.text)&&cards[0].querySelector('time')?.getAttribute('datetime')===info.time;};if(!await waitFor(targetMatches,150,100,signal))throw Error('回复目标核对失败');if(core.editorText(editor).trim())throw Error('回复框已有内容');ownedReplyDialog=dialog;ownedReplyText=text;editor.focus();const data=new DataTransfer();data.setData('text/plain',text);editor.dispatchEvent(new ClipboardEvent('paste',{clipboardData:data,bubbles:true,cancelable:true}));await sleep(350,signal);if(!core.editorText(editor)){editor.focus();document.execCommand('insertText',false,text);}if(core.editorText(editor)!==core.editorText({innerText:text}))throw Error('文案粘贴回读不一致');const send=[...dialog.querySelectorAll('[data-testid="tweetButton"],[data-testid="tweetButtonInline"]')].filter(b=>!b.disabled&&b.getAttribute('aria-disabled')!=='true');if(send.length!==1)throw Error('未找到唯一发送按钮');if(!targetMatches())throw Error('发送前回复目标已变化');cutoff();await patch({phase:'submitting',text,submittedAt:new Date().toISOString()});check(signal);
- const receipt=globalThis.XAssistantPostingReceipt.create({document,MutationObserver,account,text,setInterval,clearInterval});
- try{requireRecent(info);replySubmitted=true;clickNative(send[0]);const result=await waitFor(()=>receipt.poll(),150,100,signal);if(result?.kind!=='confirmed')throw Error(result?.message||'回复提交结果未知');await patch({phase:'confirmed',receipt:result});ownedReplyDialog=null;replySubmitted=false;return'verified';}finally{receipt.close();}};
+// A fresh session per work window: no persisted "seen" flags can strand unsent replies.
+(() => {
+  const api=globalThis.XAssistantRuntime, T=globalThis.XAssistantTasks;
+  const D=globalThis.XAssistantDOM, P=globalThis.XAssistantNotificationPolicy;
+  const KEY='xAssistantNotificationRepliesV1';
+  let activeScan=null;
+  const read=async()=>(await chrome.storage.local.get(KEY))[KEY]||{};
 
- globalThis.XAssistantNotifications={async scan(options){
-  ({account,runId,signal}=options);yieldDeadline=options.yieldAt??Infinity;check(signal);
-  db=(await read())[account.toLowerCase()]||{since:Date.now()-86400000,records:{},cycles:0};
-  if(Object.values(db.records).some(r=>['in_flight','unknown'].includes(r.status)))throw Error('通知回复结果未知，请先人工核对');
-  db.since=Date.now()-86400000; // Rolling boundary, not the original installation date.
-  db.batchUntil=db.batchUntil||Date.now();
-  const yieldToPost=()=>Date.now()>=(options.yieldAt??Infinity);
-  if(yieldToPost())return {complete:false};
-  const defer=async()=>{db.nextAt=0;await save();options.show('通知回复让位于定时发帖，发帖后继续本轮');};
-  const token=await globalThis.XAssistantInteraction.pause();
-  try{
-   if(location.pathname!=='/home')throw Error('通知循环需在主页启动，以免覆盖当前页面');
-   options.show('正在检查通知中的新回复');await save();await patch({phase:'notification_scan'});
-   const nav=document.querySelector('[data-testid="AppTabBar_Notifications_Link"]');
-   if(!nav)throw Error('没有通知入口');nav.click();
-   if(!await waitFor(()=>location.pathname.startsWith('/notifications'),100))throw Error('通知页未就绪');
-   if(location.pathname!=='/notifications/mentions')await navigate('/notifications/mentions');
-   await sleep(2000,signal);
-   const rest=async reason=>{delete db.batchUntil;db.lastChecked=Date.now();db.nextAt=0;await save();options.show(reason+'，本轮休息，等待下个回帖时段');return {complete:false,rest:true,reason};};
-   let stable=0,last='';
-   for(let screen=0;screen<100;screen++){
-    check(signal);if(yieldToPost()){await defer();return {complete:false};}if(location.pathname!=='/notifications/mentions')throw Error('通知页面已变化');
-    const rows=[...document.querySelectorAll('article[data-testid="tweet"]')].map(info).filter(Boolean);
-    for(const row of rows){
-     if(yieldToPost()){await defer();return {complete:false};}
-     // Match the account handle, not its display name or mentions in the body.
-     // Persist the exclusion so later scheduled windows do not revisit it.
-     if(excludedAuthor(row.author)){
-      if(!db.records[row.id]){db.records[row.id]={status:'ignored_grok',at:Date.now()};await save();}
-      continue;
-     }
-     if(!row.addressed||row.author.toLowerCase()===account.slice(1).toLowerCase()||!recent(row.at)||row.at>db.batchUntil||!row.text||(db.records[row.id]&&db.records[row.id].status!=='failed'))continue;
-     const prior=(await chrome.storage.local.get('xAssistantProcessedV1')).xAssistantProcessedV1?.posts?.[row.id];
-     if(prior&&['verified','in_flight','unknown'].includes(prior.reply)){db.records[row.id]={status:'previously_processed'};await save();continue;}
-     options.show('DeepSeek 正在回复通知 @'+row.author);
-     const generated=await boundedAI({kind:'AI_NOTIFICATION_REPLY',runId,post:{id:row.id,text:row.text}});check(signal);
-     if(yieldToPost()){await defer();return {complete:false};}
-     if(!recent(row.at))continue;
-     if(generated.postId!==row.id)throw Error('通知回复 ID 不匹配');
-     if(generated.action==='skip'){db.records[row.id]={status:'skipped'};await save();continue;}
-     if(generated.action!=='send_reply')throw Error('通知 AI 返回无效');
-     // Persist reservation before any send. Crash/stop never silently retries it.
-     db.records[row.id]={status:'in_flight',text:generated.text,at:Date.now()};await save();
-     try{
-      await sendReply(row,generated.text,signal);
-      db.records[row.id].status='confirmed';await save();
-      await patch({phase:'notification_scan'});
-     }catch(e){
-      if(!replySubmitted&&e.name==='ExpiredReplyError'){
-       if(!await discardResidual())throw Error('过期评论草稿无法取消，已停止');
-       db.records[row.id].status='skipped_expired';await save();await patch({phase:'notification_scan'});options.show(e.message);
-      }else if(!replySubmitted&&e.message==='通知目标已更新，请重新扫描'){
-       db.records[row.id].status='skipped_updated';await save();
-       await patch({phase:'notification_scan'});options.show('通知目标已更新，跳过此评论并继续');
-      }else if(!replySubmitted&&(document.querySelector('[role="dialog"],[role="alertdialog"]')||e.name==='YieldError')){
-       if(!await discardResidual()){db.records[row.id].status='failed';await save();throw Error('弹窗取消失败，已停止');}
-       db.records[row.id].status=e.name==='YieldError'?'failed':'skipped_popup';await save();
-       await patch({phase:'notification_scan'});options.show('已取消弹窗，跳过此评论');
-       if(e.name==='YieldError'){await defer();return {complete:false};}
-      }else{db.records[row.id].status=replySubmitted?'unknown':'failed';await save();if(!replySubmitted)await cleanup();throw e;}
-     }
-     const replyDelay=core.randomSeconds(10,30);
-     options.show(`本条处理结束 · 等待 ${replyDelay.toFixed(1)} 秒后处理下一条`);
-     for(let end=Date.now()+replyDelay*1000;Date.now()<end;){if(yieldToPost()){await defer();return {complete:false};}options.show(`本条处理结束 · ${((end-Date.now())/1000).toFixed(1)} 秒`);await sleep(Math.min(100,end-Date.now()),signal);}
+  async function scanWindow(options) {
+    const {account,runId,signal}=options, owner=account.toLowerCase();
+    const deadline=options.yieldAt??Infinity, startedAt=Date.now();
+    const show=options.show||(()=>{}), attempted=new Set(), observed=new Set();
+    let resumable=false;
+    const stats={seen:0,eligible:0,confirmed:0,aiSkipped:0,aiFailed:0,failed:0,excluded:{}};
+    const all=await read();
+    const db={records:{},cycles:0,...all[owner]};
+    db.records=db.records||{};
+    // Migration: these legacy fields encoded "attempted before generating" across windows.
+    delete db.batchSeen;delete db.batchUntil;
+    db.since=startedAt-P.DAY;
+    const processed=(await chrome.storage.local.get('xAssistantProcessedV1')).xAssistantProcessedV1?.posts||{};
+    const save=async()=>{
+      const latest=await read();latest[owner]=db;await chrome.storage.local.set({[KEY]:latest});
+    };
+    const patch=value=>api.runtime('notifications','patch',{runId,patch:value});
+    const guard=()=>{
+      T.check(signal,deadline);
+      if(D.account()!==owner)throw new T.TaskError('ACCOUNT_CHANGED','账号变化，停止通知回复');
+    };
+    const record=async(row,status,extra={})=>{
+      db.records[row.id]={...db.records[row.id],status,at:Date.now(),commentAt:row.at,author:row.author,...extra};
+      await save();
+    };
+    const report=message=>show(`${message} · 本轮已回复 ${stats.confirmed}，AI跳过 ${stats.aiSkipped}，失败 ${stats.failed+stats.aiFailed}`);
+    const navigate=async(path,allowExpired=false)=>{
+      const timeLimit=allowExpired?Infinity:deadline;
+      if(D.dialogs().length)throw new T.TaskError('CLEANUP_FAILED','仍有未处理的回复弹窗');
+      if(location.pathname===path)return;
+      const link=await T.waitFor(()=>[...document.querySelectorAll('a[href]')].find(a=>{
+        try{const url=new URL(a.getAttribute('href'),'https://x.com');return url.origin==='https://x.com'&&url.pathname.replace(/\/$/,'')===path;}catch{return false;}
+      }),{signal,deadline:timeLimit,timeout:2000});
+      if(link)link.click();
+      else {
+        // X sometimes omits the mentions tab while its navigation is rendering.
+        // Use the existing SPA router, without reloading or resuming a send.
+        T.check(signal,timeLimit);guard();
+        if([...document.querySelectorAll('[contenteditable="true"]')].some(e=>globalThis.XAssistantCore.editorText(e).trim()))throw new T.TaskError('RESIDUAL_DRAFT','页面存在未发送的内联草稿，请先处理');
+        if(!['/home','/notifications','/notifications/mentions'].includes(path))throw new T.TaskError('NAVIGATION','不支持的通知导航路径');
+        history.pushState(history.state,'',path);
+        window.dispatchEvent(new PopStateEvent('popstate',{state:history.state}));
+      }
+      if(!await T.waitFor(()=>location.pathname===path,{signal,deadline:timeLimit,timeout:10000}))throw new T.TaskError('NAVIGATION','通知页面切换失败');
+    };
+    const finish=async(reason,complete=false)=>{
+      db.lastChecked=Date.now();db.nextAt=0;db.cycles++;
+      db.lastScan={startedAt,finishedAt:Date.now(),reason,stats};
+      await save();resumable=true;
+      report(reason==='yield'?'本轮时间已到，未完成评论留待下轮':reason==='exhausted'?'暂无可回复评论，本轮结束':reason==='scan_limit'?'本轮扫描已达上限，稍后继续':'本轮暂歇：'+reason);
+      return {complete,rest:!complete&&reason!=='yield',reason,stats};
+    };
+    const checkUncertain=()=>{
+      if(Object.values(db.records).some(r=>P.uncertain(r)))throw new T.TaskError('SEND_UNKNOWN','存在未知发送记录，请先核对；不会自动重复发送');
+    };
+    checkUncertain();guard();await save();
+    let token=null;
+    try {
+      if(!options.cooldownSlot)token=await globalThis.XAssistantInteraction.pause();
+      guard();
+      await patch({phase:'notification_scan',nextAt:Number.isFinite(deadline)?deadline:null});
+      show('检查最新评论 · 最近24小时 · 已成功回复自动略过');
+      if(location.pathname!=='/notifications/mentions'){
+        if(!location.pathname.startsWith('/notifications'))await navigate('/notifications');
+        await navigate('/notifications/mentions');
+      }
+      window.scrollTo({top:0,behavior:'instant'});
+      await T.sleep(500,signal,deadline);
+      await T.waitFor(()=>D.rows(owner).length||!document.querySelector('[role="progressbar"]'),{signal,deadline,timeout:5000});
+      let stable=0,last='';
+      for(let screen=0;screen<100;screen++){
+        guard();
+        if(location.pathname!=='/notifications/mentions')throw new T.TaskError('NAVIGATION','通知页面已变化');
+        // Refresh nodes after every attempt. X can replace articles after opening a composer.
+        for(;;){
+          guard();
+          const rows=P.newestFirst(D.rows(owner));
+          let target=null;
+          for(const row of rows){
+            const reason=P.reason(row,{account:owner,until:startedAt,record:db.records[row.id],prior:processed[row.id],attempted});
+            if(!observed.has(row.id)){
+              observed.add(row.id);stats.seen++;
+              if(reason)stats.excluded[reason]=(stats.excluded[reason]||0)+1;
+            }
+            if(reason==='unknown_send')throw new T.TaskError('SEND_UNKNOWN','目标评论存在未知发送记录，请先核对');
+            if(!reason){target=row;break;}
+          }
+          if(!target)break;
+          stats.eligible++;
+          report('AI 正在生成回复 @'+target.author);
+          // Nothing is marked attempted until generation produces a definite outcome.
+          const generated=await T.bounded(()=>api.call({kind:'AI_NOTIFICATION_REPLY',runId,post:{id:target.id,text:target.text}}),{signal,deadline});
+          guard();
+          if(generated.postId!==target.id)throw new T.TaskError('TARGET_MISMATCH','AI 回复目标不匹配');
+          if(!P.recent(target.at)){attempted.add(target.id);continue;}
+          if(generated.skippedGenerationError){
+            stats.aiFailed++;attempted.add(target.id);
+            await record(target,'ai_error',{reasonCode:generated.reasonCode||'AI_GENERATION',reason:generated.reason||'AI 生成失败'});
+            report('AI 生成失败，未发送；下轮可重试');
+            if(/连接|HTTP|超时/.test(generated.reason||'')){await T.sleep(1000,signal,deadline);return await finish('AI 服务暂不可用');}
+          } else if(generated.action==='skip'){
+            stats.aiSkipped++;attempted.add(target.id);
+            await record(target,'skipped',{reasonCode:'AI_CHOICE',reason:generated.skipReason||'AI 主动选择不回复'});
+            report('AI 主动跳过此评论');
+          } else {
+            if(generated.action!=='send_reply')throw new T.TaskError('AI_PROTOCOL','AI 未返回有效回复');
+            try {
+              await globalThis.XAssistantReplyEngine.send({
+                row:target,text:generated.text,account:owner,signal,deadline,requireAddressed:true,patch,
+                validate:row=>{if(!P.recent(row.at))throw new T.TaskError('EXPIRED','评论已超过24小时');},
+                onBeforeSubmit:()=>record(target,'in_flight',{text:generated.text,reasonCode:null,reason:null}),
+                onConfirmed:receipt=>record(target,'confirmed',{receipt,reasonCode:null,reason:null})
+              });
+              stats.confirmed++;attempted.add(target.id);
+              await patch({phase:'notification_scan'});
+              report('回复已确认');
+            } catch(error){
+              if(error.confirmed||P.confirmed(db.records[target.id]))throw error; // confirmed ledger retained even if runtime persistence failed
+              if(error.submitted){await record(target,'unknown',{reasonCode:'SEND_UNKNOWN',reason:error.message});throw error;}
+              if(error.name==='AbortError'||error.code==='YIELD'){
+                // Reservation may exist, but engine proves no click occurred.
+                if(db.records[target.id]?.status==='in_flight')await record(target,'failed',{reasonCode:'INTERRUPTED_BEFORE_SEND',reason:'未提交，留待下轮'});
+                throw error;
+              }
+              stats.failed++;attempted.add(target.id);
+              await record(target,'failed',{reasonCode:error.code||'REPLY_FAILURE',reason:error.message});
+              if(['ACCOUNT_CHANGED','CLEANUP_FAILED'].includes(error.code))throw error;
+              await patch({phase:'notification_scan'});
+              report('未发送：'+error.message+'；下轮可重试');
+            }
+          }
+          const cooldownMs=generated.skippedGenerationError||generated.action==='skip'?1000:globalThis.XAssistantCore.randomSeconds(3,5)*1000;
+          const end=Date.now()+cooldownMs;
+          while(Date.now()<end){
+            report('下一条 · '+((end-Date.now())/1000).toFixed(1)+' 秒');
+            await T.sleep(Math.min(200,end-Date.now()),signal,deadline);
+          }
+        }
+        const rows=P.newestFirst(D.rows(owner)), signature=rows.map(r=>r.id).join(',');
+        stable=signature===last?stable+1:0;last=signature;
+        if(rows.length&&rows.every(r=>r.at<Date.now()-P.DAY))return await finish('exhausted',true);
+        if(stable>=3)return await finish(document.querySelector('[role="progressbar"]')?'通知仍在加载':'exhausted',!document.querySelector('[role="progressbar"]'));
+        window.scrollBy(0,Math.max(600,innerHeight*.8));
+        await T.sleep(1200,signal,deadline);
+      }
+      return await finish('scan_limit');
+    } catch(error){
+      if(error.code==='YIELD'||error.name==='YieldError')return await finish('yield');
+      db.lastScan={startedAt,finishedAt:Date.now(),reason:error.name==='AbortError'?'stopped':'error',error:error.message,stats};
+      await save();throw error;
+    } finally {
+      // Scheduling owns the work destination; leave the page in a known safe state.
+      if(resumable&&!signal.aborted&&!D.dialogs().length&&location.pathname.startsWith('/notifications'))await navigate('/home',true);
+      if(resumable&&token&&!signal.aborted&&location.pathname==='/home')await globalThis.XAssistantInteraction.resume(token);
     }
-    const signature=rows.map(r=>r.id).join(',');stable=signature===last?stable+1:0;last=signature;
-    if(rows.length&&rows.every(r=>r.at<Date.now()-86400000))break;
-    if(stable>=3){if(document.querySelector('[role="progressbar"]'))return await rest('通知仍在加载，暂未确认有可回复评论');break;}
-    window.scrollBy(0,Math.max(600,innerHeight*.8));await sleep(1800,signal);
-    if(screen===99)return await rest('本轮扫描达到上限，未将未扫描评论标记为完成');
-   }
-   delete db.batchUntil;
-   db.cycles++;db.lastChecked=Date.now();db.nextAt=0;await save();
-   options.show('最近24小时内暂无待回复评论，本轮休息');return {complete:true};
-  }catch(e){if(e.name==='YieldError'&&!replySubmitted){await defer();return {complete:false};}throw e;}finally{
-   // Never navigate away from a retained draft or after user cancellation.
-   if(!signal.aborted&&!document.querySelector('[role="dialog"],[role="alertdialog"]')&&location.pathname.startsWith('/notifications'))await navigate('/home');
-   if(!signal.aborted&&location.pathname==='/home')await globalThis.XAssistantInteraction.resume(token);
   }
- },isRecent:recent,discardResidual,shouldIgnore:excludedAuthor,async nextAt(account){return (await read())[account.toLowerCase()]?.nextAt||0;}};
+  async function scan(options){
+    if(activeScan)throw new Error('回帖正在执行，请等待当前窗口结束');
+    activeScan=scanWindow(options);
+    try{return await activeScan;}finally{activeScan=null;}
+  }
+  globalThis.XAssistantNotifications={
+    scan,alreadyReplied:P.confirmed,isRecent:P.recent,shouldIgnore:author=>author?.toLowerCase()==='grok',
+    discardResidual:async()=>{const runtime=await api.runtime('notifications','get');return ['submitting','unknown'].includes(runtime.phase)?false:globalThis.XAssistantPopup.cancel();},
+    async nextAt(account){return(await read())[account.toLowerCase()]?.nextAt||0;}
+  };
 })();

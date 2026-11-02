@@ -5,6 +5,8 @@ import {generateReply,generatePost,generateNotificationReply} from './ai-client.
 import builtinLibrary from './builtin-library.mjs';
 import lanvPosts from './lanv-posts-50.mjs';
 import rewrittenPosts from './rewritten-existing-posts-155.mjs';
+import postImageMap from './post-image-map.mjs';
+import friendPostLibrary from './friend-post-library-100.mjs';
 import {validateRows} from './core.mjs';
 import {KEYS,beginState,patchState,stopState,resolveState,libraryOperation,reserveRow} from './state.mjs';
 let queue=Promise.resolve();
@@ -80,6 +82,13 @@ async function handle(msg,sender){
 }
 chrome.runtime.onMessage.addListener((msg,sender,respond)=>{
  if(sender.id!==chrome.runtime.id)return;
+ // Liveness must not wait behind credential checks or storage mutations.
+ if(msg?.kind==='PING'){
+  const allowed=sender.url?.split('#')[0]===chrome.runtime.getURL('panel.html')||
+   (Number.isInteger(sender.tab?.id)&&/^https:\/\/x\.com\//.test(sender.url||''));
+  respond(allowed?{ok:true,state:null}:{ok:false,error:'无效消息来源'});return false;
+ }
+
  if(msg?.kind==='AI_REPLY'||msg?.kind==='AI_POST'||msg?.kind==='AI_NOTIFICATION_REPLY'){
   (async()=>{
    if(!Number.isInteger(sender.tab?.id)||!/^https:\/\/x\.com\//.test(sender.url||''))throw Error('无效 AI 请求来源');
@@ -87,7 +96,7 @@ chrome.runtime.onMessage.addListener((msg,sender,respond)=>{
    const s=await read(key);patchState(s,{}, {owner:sender.tab.id,runId:msg.runId});
    const recover=(generate,binding)=>recoverGeneration(generate,{binding,
     check:async()=>patchState(await read(key),{}, {owner:sender.tab.id,runId:msg.runId}),
-    report:entry=>serial(async()=>{await write('xAssistantAIStatusV1',{module:msg.kind,error:entry.reason,attempt:entry.attempt,retrying:entry.retrying,time:Date.now()});await log(`${msg.kind} · AI 第 ${entry.attempt} 次失败 · ${entry.reason} · ${entry.retrying?'稍后重试':'本次生成失败，未发送'}`);})
+    report:entry=>serial(async()=>{await write('xAssistantAIStatusV1',{module:msg.kind,error:entry.reason,reasonCode:entry.reasonCode,attempt:entry.attempt,retrying:entry.retrying,time:Date.now()});await log(`${msg.kind} · AI 第 ${entry.attempt} 次失败 · ${entry.reason} · ${entry.retrying?'稍后重试':'本次生成失败，未发送'}`);})
    });
    let result;
    if(msg.kind==='AI_POST'){
@@ -110,13 +119,15 @@ async function recover(install=false){
  if(install&&!app.existingPostsRewriteV1Loaded){const replacements=new Map(validateRows(rewrittenPosts).map(row=>[row.id,row])),ids=new Set(app.rows.map(row=>row.id));app.rows=app.rows.map(row=>replacements.has(row.id)?{...row,text:replacements.get(row.id).text}:row);app.rows.push(...rewrittenPosts.filter(row=>!ids.has(row.id)));app.existingPostsRewriteV1Loaded=true;}
  if(install&&!app.lanvPostsV1Loaded){const ids=new Set(app.rows.map(row=>row.id));app.rows.push(...validateRows(lanvPosts).filter(row=>!ids.has(row.id)));app.lanvPostsV1Loaded=true;}
  if(install&&!app.postTopicsV1Loaded){const tagged=validateRows([...rewrittenPosts,...lanvPosts]),replacements=new Map(tagged.map(row=>[row.id,row])),ids=new Set(app.rows.map(row=>row.id));app.rows=app.rows.map(row=>replacements.has(row.id)?{...row,text:replacements.get(row.id).text}:row);app.rows.push(...tagged.filter(row=>!ids.has(row.id)));app.postTopicsV1Loaded=true;}
+ if(install&&!app.postImagesV1Loaded){app.rows=app.rows.map(row=>postImageMap[row.id]?{...row,image:postImageMap[row.id]}:row);app.postImagesV1Loaded=true;}
+ if(install&&!app.friendPostsImagesV2Loaded){const replacements=new Map(validateRows(friendPostLibrary).map(row=>[row.id,row])),seen=new Set(app.rows.map(row=>row.id));app.rows=app.rows.map(row=>replacements.get(row.id)||row);app.rows.push(...friendPostLibrary.filter(row=>!seen.has(row.id)));app.friendPostsImagesV2Loaded=true;}
  app.schemaVersion=2;app.running=false;app.nextAt=null;
  await write('app',app);
  for(const key of Object.values(KEYS))await write(key,stopState(await read(key)));
  const schedule=await read('xAssistantSchedulerV3');if(schedule)await write('xAssistantSchedulerV3',{...schedule,active:false});
  const scan=await read('xAssistantFollowingScanV1');if(scan)await write('xAssistantFollowingScanV1',{...scan,active:false,message:'浏览器或扩展已重启，请重新读取'});
  await chrome.alarms.clear('x-assistant-loop');
- await log('v3 状态已恢复；用户文案保留，循环保持停止，未知发送记录保留');
+ await log('v4 状态已恢复；用户文案保留，循环保持停止，未知发送记录保留');
 }
 chrome.runtime.onInstalled.addListener(()=>serial(()=>recover(true)).catch(console.error));
 chrome.runtime.onStartup.addListener(()=>serial(()=>recover()).catch(console.error));

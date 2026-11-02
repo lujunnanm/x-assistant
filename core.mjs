@@ -8,8 +8,13 @@ export function validateRows(input) {
     const id = r.id === undefined ? crypto.randomUUID() : r.id.trim?.();
     if (typeof id !== 'string' || !id.trim() || ids.has(id)) throw Error(`第 ${i+1} 条 ID 无效或重复`);
     if (r.enabled !== undefined && typeof r.enabled !== 'boolean') throw Error(`第 ${i+1} 条 enabled 必须为布尔值`);
+    let image;
+    if(r.image!==undefined){
+      if(r.type!=='post'||typeof r.image!=='string'||!/^post-images\/[A-Za-z0-9._-]+\.(?:jpe?g|png|webp)$/i.test(r.image))throw Error(`第 ${i+1} 条配图路径无效`);
+      image=r.image;
+    }
     ids.add(id);
-    return {id, type:r.type, text:r.text.trim(), enabled:r.enabled !== false};
+    return {id, type:r.type, text:r.text.trim(), enabled:r.enabled !== false,...(image?{image}:{})};
   });
 }
 export function interval(config, random = Math.random) {

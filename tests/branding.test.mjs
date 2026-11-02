@@ -7,4 +7,5 @@ test('Sacred Plan brand is consistent across extension and visible surfaces',asy
 test('packaged icon sizes match PNG headers and toolbar entries',async()=>{
  for(const n of [16,32,48,128]){const path=manifest.icons[n];assert.equal(manifest.action.default_icon[n],path);const bytes=await readFile(new URL('../'+path,import.meta.url));assert.equal(bytes.toString('hex',0,8),'89504e470d0a1a0a');assert.equal(bytes.readUInt32BE(16),n);assert.equal(bytes.readUInt32BE(20),n);}
  assert.ok(manifest.web_accessible_resources.some(r=>r.resources.includes('icons/icon-48.png')&&r.matches.includes('https://x.com/*')));
+ assert.ok(manifest.web_accessible_resources.some(r=>r.resources.includes('post-images/*.jpg')&&r.matches.includes('https://x.com/*')));
 });

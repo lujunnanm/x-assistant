@@ -12,7 +12,7 @@
  const onOwnProfile=handle=>location.pathname.toLowerCase()==='/'+handle&&!location.search;
  const visible=element=>{const r=element.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(element).visibility!=='hidden';};
  const clickNative=button=>{button.scrollIntoView({block:'center',behavior:'instant'});button.focus?.({preventScroll:true});button.click();};
- const wait=async(fn,signal,label,count=120)=>{for(let i=0;i<count;i++){api.check(signal);const value=fn();if(value)return value;await api.sleep(100,signal);}throw Error(label+'超时');};
+ const wait=async(fn,signal,label,count=120)=>{const value=await globalThis.XAssistantTasks.waitFor(fn,{signal,timeout:count*100});if(value)return value;throw Error(label+'超时');};
  const postInfo=(article,self)=>{
   const own=[...article.querySelectorAll('time')].map(time=>{const link=time.closest('a[href*="/status/"]');if(!link)return null;const match=new URL(link.href).pathname.match(/^\/([A-Za-z0-9_]{1,15})\/status\/(\d+)$/);return match&&match[1].toLowerCase()===self?{time,link,author:match[1],id:match[2]}:null;}).find(Boolean);if(!own)return null;
   const analytics=article.querySelector(`a[href$="/status/${own.id}/analytics"]`),viewLabel=analytics?.getAttribute('aria-label')||analytics?.textContent||'';

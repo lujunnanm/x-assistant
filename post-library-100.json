@@ -3,7 +3,8 @@
     "id": "post_001",
     "type": "post",
     "text": "刚开始认真玩 X，想认识一些愿意分享日常的朋友。你最近都在关注什么？\n\n#蓝v交友 #蓝V互动 #交个朋友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-40.jpg"
   },
   {
     "id": "post_002",
@@ -21,7 +22,8 @@
     "id": "post_004",
     "type": "post",
     "text": "今天来 X 的任务：发现几个有趣的账号，顺便和大家打个招呼。\n\n#蓝v交友 #蓝V互动 #交个朋友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-17.jpg"
   },
   {
     "id": "post_005",
@@ -33,19 +35,22 @@
     "id": "post_006",
     "type": "post",
     "text": "想把这里经营成一个轻松的角落：分享见闻，交流想法，偶尔聊聊生活。\n\n#蓝v交友 #认识新朋友 #真诚交友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-46.jpg"
   },
   {
     "id": "post_007",
     "type": "post",
     "text": "有没有和我一样，刚开始玩 X，还在慢慢寻找同频朋友的？我们评论区见。\n\n#蓝v交友 #蓝V互动 #交个朋友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-27.jpg"
   },
   {
     "id": "post_008",
     "type": "post",
     "text": "今天的份额不是什么大目标，就是认真认识几位新朋友。\n\n#蓝v交友 #互相交流 #评论区见",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-04.jpg"
   },
   {
     "id": "post_009",
@@ -69,7 +74,8 @@
     "id": "post_012",
     "type": "post",
     "text": "今天不聊宏大话题，就想问一句：你今天过得怎么样？\n\n#蓝v交友 #认识新朋友 #真诚交友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-20.jpg"
   },
   {
     "id": "post_013",
@@ -81,55 +87,64 @@
     "id": "post_014",
     "type": "post",
     "text": "慢慢玩，慢慢认识人。比起数字，我更喜欢评论区里真实的聊天。\n\n#蓝v交友 #互相交流 #评论区见",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-15.jpg"
   },
   {
     "id": "post_015",
     "type": "post",
     "text": "新朋友们好！如果你也喜欢随手记录生活，欢迎来聊聊。\n\n#蓝v交友 #认识新朋友 #真诚交友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-09.jpg"
   },
   {
     "id": "post_016",
     "type": "post",
     "text": "今天想认识几位有自己热爱的人。不管是工作、爱好还是生活小事，都欢迎分享。\n\n#蓝v交友 #蓝V互动 #交个朋友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-10.jpg"
   },
   {
     "id": "post_017",
     "type": "post",
     "text": "X 上这么多人，总有几个能和你聊到一起。今天来碰个运气。\n\n#蓝v交友 #互相交流 #评论区见",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-03.jpg"
   },
   {
     "id": "post_018",
     "type": "post",
     "text": "早上打开 X，先和路过的朋友说声早安。愿今天有好心情，也有好消息。\n\n#蓝v交友 #认识新朋友 #真诚交友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-13.jpg"
   },
   {
     "id": "post_019",
     "type": "post",
     "text": "晚上好，今天过得忙不忙？来评论区歇一会儿，聊点轻松的。\n\n#蓝v交友 #蓝V互动 #交个朋友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-47.jpg"
   },
   {
     "id": "post_020",
     "type": "post",
     "text": "周末到了，大家是准备出门走走，还是在家好好休息？\n\n#蓝v交友 #互相交流 #评论区见",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-07.jpg"
   },
   {
     "id": "post_021",
     "type": "post",
     "text": "今天发现一个小乐趣：认真看看别人分享的生活，自己的世界也会大一点。\n\n#蓝v交友 #认识新朋友 #真诚交友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-43.jpg"
   },
   {
     "id": "post_022",
     "type": "post",
     "text": "刚来到这里不久，想认识一些坚持更新的朋友，一起慢慢记录。\n\n#蓝v交友 #蓝V互动 #交个朋友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-30.jpg"
   },
   {
     "id": "post_023",
@@ -141,7 +156,8 @@
     "id": "post_024",
     "type": "post",
     "text": "不知道大家玩 X 多久了？我还在摸索阶段，欢迎老朋友分享经验。\n\n#蓝v交友 #认识新朋友 #真诚交友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-16.jpg"
   },
   {
     "id": "post_025",
@@ -159,7 +175,8 @@
     "id": "post_027",
     "type": "post",
     "text": "今天给自己一个小任务：多看看别人的内容，遇到有共鸣的就认真聊两句。\n\n#蓝v交友 #认识新朋友 #真诚交友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-25.jpg"
   },
   {
     "id": "post_028",
@@ -171,13 +188,15 @@
     "id": "post_029",
     "type": "post",
     "text": "有人喜欢热闹，有人喜欢安静。你在 X 上更喜欢看哪种内容？\n\n#蓝v交友 #互相交流 #评论区见",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-21.jpg"
   },
   {
     "id": "post_030",
     "type": "post",
     "text": "生活已经够忙了，希望打开 X 的时候，能看到一点轻松和善意。\n\n#蓝v交友 #认识新朋友 #真诚交友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-12.jpg"
   },
   {
     "id": "post_031",
@@ -189,7 +208,8 @@
     "id": "post_032",
     "type": "post",
     "text": "认真写下的每一条动态，都可能遇到一个同频的人。新人继续记录中。\n\n#蓝v交友 #互相交流 #评论区见",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-33.jpg"
   },
   {
     "id": "post_033",
@@ -201,7 +221,8 @@
     "id": "post_034",
     "type": "post",
     "text": "今天的问候送给正在努力生活的你。忙归忙，也别忘了休息。\n\n#蓝v交友 #蓝V互动 #交个朋友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-22.jpg"
   },
   {
     "id": "post_035",
@@ -213,7 +234,8 @@
     "id": "post_036",
     "type": "post",
     "text": "新账号慢慢成长中。希望认识愿意互动、也愿意分享自己想法的朋友。\n\n#蓝v交友 #认识新朋友 #真诚交友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-44.jpg"
   },
   {
     "id": "post_037",
@@ -231,13 +253,15 @@
     "id": "post_039",
     "type": "post",
     "text": "喜欢有观点的人，也喜欢愿意听不同观点的人。希望在这里遇到你们。\n\n#蓝v交友 #认识新朋友 #真诚交友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-50.jpg"
   },
   {
     "id": "post_040",
     "type": "post",
     "text": "今天来认识几个新面孔。如果你也在认真经营自己的小天地，欢迎交流。\n\n#蓝v交友 #蓝V互动 #交个朋友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-08.jpg"
   },
   {
     "id": "post_041",
@@ -249,13 +273,15 @@
     "id": "post_042",
     "type": "post",
     "text": "今天不设目标数字，只想遇到几个愿意好好聊天的人。\n\n#蓝v交友 #认识新朋友 #真诚交友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-01.jpg"
   },
   {
     "id": "post_043",
     "type": "post",
     "text": "新人还在适应这里的节奏。先多看、多学，也欢迎大家来认识。\n\n#蓝v交友 #蓝V互动 #交个朋友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-05.jpg"
   },
   {
     "id": "post_044",
@@ -273,7 +299,8 @@
     "id": "post_046",
     "type": "post",
     "text": "生活里的小事也值得记录。今天你遇到的最开心的小事是什么？\n\n#蓝v交友 #蓝V互动 #交个朋友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-02.jpg"
   },
   {
     "id": "post_047",
@@ -291,19 +318,22 @@
     "id": "post_049",
     "type": "post",
     "text": "不需要刻意找话题，看到感兴趣的内容就聊聊。慢慢认识，慢慢熟悉。\n\n#蓝v交友 #蓝V互动 #交个朋友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-36.jpg"
   },
   {
     "id": "post_050",
     "type": "post",
     "text": "今天给自己留一句话：保持好奇，也保持真诚。大家今天有什么想对自己说的？\n\n#蓝v交友 #互相交流 #评论区见",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-06.jpg"
   },
   {
     "id": "post_051",
     "type": "post",
     "text": "早安！今天准备做的一件小事是什么？说出来，说不定就更有动力了。\n\n#蓝v交友 #认识新朋友 #真诚交友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-34.jpg"
   },
   {
     "id": "post_052",
@@ -315,7 +345,8 @@
     "id": "post_053",
     "type": "post",
     "text": "想把 X 变成一个交换想法的地方。无论你喜欢什么，都欢迎聊聊。\n\n#蓝v交友 #互相交流 #评论区见",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-29.jpg"
   },
   {
     "id": "post_054",
@@ -333,7 +364,8 @@
     "id": "post_056",
     "type": "post",
     "text": "你喜欢看长一点的观点，还是短一点的日常？我两种都想尝试。\n\n#蓝v交友 #互相交流 #评论区见",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-32.jpg"
   },
   {
     "id": "post_057",
@@ -345,7 +377,8 @@
     "id": "post_058",
     "type": "post",
     "text": "今天来看看有没有同样喜欢分享新鲜事的朋友。最近发现了什么有趣的东西？\n\n#蓝v交友 #蓝V互动 #交个朋友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-35.jpg"
   },
   {
     "id": "post_059",
@@ -363,31 +396,36 @@
     "id": "post_061",
     "type": "post",
     "text": "天气怎么样？我这边正适合给自己泡杯饮料，顺便认识几位新朋友。\n\n#蓝v交友 #蓝V互动 #交个朋友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-42.jpg"
   },
   {
     "id": "post_062",
     "type": "post",
     "text": "有喜欢探索新工具、新应用的朋友吗？最近有什么好玩的发现？\n\n#蓝v交友 #互相交流 #评论区见",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-45.jpg"
   },
   {
     "id": "post_063",
     "type": "post",
     "text": "随手发一条，给今天留下个记号。也给路过的朋友留个打招呼的地方。\n\n#蓝v交友 #认识新朋友 #真诚交友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-14.jpg"
   },
   {
     "id": "post_064",
     "type": "post",
     "text": "有时候一句真诚的回复，比一堆客套话更容易让人记住。大家觉得呢？\n\n#蓝v交友 #蓝V互动 #交个朋友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-49.jpg"
   },
   {
     "id": "post_065",
     "type": "post",
     "text": "刚开始更新，不知道大家更喜欢看生活记录还是观点分享？\n\n#蓝v交友 #互相交流 #评论区见",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-11.jpg"
   },
   {
     "id": "post_066",
@@ -429,7 +467,8 @@
     "id": "post_072",
     "type": "post",
     "text": "最近在整理自己的兴趣清单，也想看看大家都在热爱什么。\n\n#蓝v交友 #认识新朋友 #真诚交友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-48.jpg"
   },
   {
     "id": "post_073",
@@ -447,7 +486,8 @@
     "id": "post_075",
     "type": "post",
     "text": "新人在这里签到。欢迎不同领域的朋友聊聊，看看能不能碰撞出新想法。\n\n#蓝v交友 #认识新朋友 #真诚交友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-19.jpg"
   },
   {
     "id": "post_076",
@@ -465,7 +505,8 @@
     "id": "post_078",
     "type": "post",
     "text": "来这里不只是为了发内容，也想认识一些能让自己看到不同世界的人。\n\n#蓝v交友 #认识新朋友 #真诚交友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-37.jpg"
   },
   {
     "id": "post_079",
@@ -477,13 +518,15 @@
     "id": "post_080",
     "type": "post",
     "text": "有喜欢拍照的朋友吗？你最近拍到的最喜欢的一张照片是什么主题？\n\n#蓝v交友 #互相交流 #评论区见",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-38.jpg"
   },
   {
     "id": "post_081",
     "type": "post",
     "text": "每个人的主页都是一扇小窗。今天想多打开几扇，看看大家的故事。\n\n#蓝v交友 #认识新朋友 #真诚交友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-41.jpg"
   },
   {
     "id": "post_082",
@@ -501,13 +544,15 @@
     "id": "post_084",
     "type": "post",
     "text": "今天有没有朋友正在为一件事努力？不管进度如何，都给自己一点鼓励。\n\n#蓝v交友 #认识新朋友 #真诚交友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-26.jpg"
   },
   {
     "id": "post_085",
     "type": "post",
     "text": "发现这里有很多坚持写作和记录的朋友。你们一般怎么找到分享灵感？\n\n#蓝v交友 #蓝V互动 #交个朋友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-39.jpg"
   },
   {
     "id": "post_086",
@@ -531,7 +576,8 @@
     "id": "post_089",
     "type": "post",
     "text": "新人举手！想多了解这里的社区，也想认识一些愿意交流的朋友。\n\n#蓝v交友 #互相交流 #评论区见",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-24.jpg"
   },
   {
     "id": "post_090",
@@ -549,7 +595,8 @@
     "id": "post_092",
     "type": "post",
     "text": "有时候一条普通的日常，也能引出一段有趣的对话。今天来试试看。\n\n#蓝v交友 #互相交流 #评论区见",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-31.jpg"
   },
   {
     "id": "post_093",
@@ -567,7 +614,8 @@
     "id": "post_095",
     "type": "post",
     "text": "屏幕前的朋友，你现在在哪个城市？如果不方便说，就分享一下当地的天气吧。\n\n#蓝v交友 #互相交流 #评论区见",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-18.jpg"
   },
   {
     "id": "post_096",
@@ -591,12 +639,14 @@
     "id": "post_099",
     "type": "post",
     "text": "今天的小小期待：发一条自己喜欢的内容，认识一位聊得来的朋友。\n\n#蓝v交友 #认识新朋友 #真诚交友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-23.jpg"
   },
   {
     "id": "post_100",
     "type": "post",
     "text": "新朋友、老朋友都好，愿我们在这里分享的每句话，都能遇到愿意认真看的人。\n\n#蓝v交友 #蓝V互动 #交个朋友",
-    "enabled": true
+    "enabled": true,
+    "image": "post-images/post-image-28.jpg"
   }
 ]

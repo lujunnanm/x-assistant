@@ -7,7 +7,7 @@ const send=(msg,who=sender)=>new Promise(resolve=>events.message(msg,who,resolve
 const rt=(action,extra={})=>send({kind:'RUNTIME',module:'posting',action,...extra});
 const tick=()=>new Promise(r=>setTimeout(r,20));
 test('integration: migration, simultaneous edits, start, stop, stale completion, restart',async()=>{
- stored.app={rows:[{id:'custom',type:'post',text:'mine',enabled:true}],logs:[]};events.install();await tick();assert.equal(stored.app.rows.length,357);assert.equal(stored.app.replyFollowBackV1Loaded,true);assert.ok(stored.app.rows.filter(r=>r.type==='reply').every(r=>r.text.endsWith('\n请回关我')));assert.equal(stored.app.existingPostsRewriteV1Loaded,true);assert.equal(stored.app.rows.filter(r=>r.id!=='post_100'&&/^(?:post_00[1-9]|post_0[1-4][0-9]|post_1\d\d|post_20[0-6])$/.test(r.id)).length,155);assert.equal(stored.app.lanvPostsV1Loaded,true);assert.equal(stored.app.rows.filter(r=>r.id.startsWith('lanv_post_')).length,50);assert.equal(stored.app.postTopicsV1Loaded,true);const posts=stored.app.rows.filter(r=>r.type==='post'&&r.id!=='custom');assert.ok(posts.every(r=>r.text.includes('#蓝v交友')&&(r.text.match(/#\S+/g)||[]).length===3));
+ stored.app={rows:[{id:'custom',type:'post',text:'mine',enabled:true}],logs:[]};events.install();await tick();assert.equal(stored.app.rows.length,357);assert.equal(stored.app.replyFollowBackV1Loaded,true);assert.ok(stored.app.rows.filter(r=>r.type==='reply').every(r=>r.text.endsWith('\n请回关我')));assert.equal(stored.app.existingPostsRewriteV1Loaded,true);assert.equal(stored.app.rows.filter(r=>r.id!=='post_100'&&/^(?:post_00[1-9]|post_0[1-4][0-9]|post_1\d\d|post_20[0-6])$/.test(r.id)).length,155);assert.equal(stored.app.lanvPostsV1Loaded,true);assert.equal(stored.app.rows.filter(r=>r.id.startsWith('lanv_post_')).length,50);assert.equal(stored.app.postTopicsV1Loaded,true);assert.equal(stored.app.postImagesV1Loaded,true);assert.equal(stored.app.friendPostsImagesV2Loaded,true);assert.equal(stored.app.rows.filter(r=>/^post_(?:0\d\d|100)$/.test(r.id)).length,100);assert.equal(stored.app.rows.filter(r=>r.image).length,50);assert.equal(new Set(stored.app.rows.filter(r=>r.image).map(r=>r.image)).size,50);const posts=stored.app.rows.filter(r=>r.type==='post'&&r.id!=='custom');assert.ok(posts.every(r=>r.text.includes('#蓝v交友')&&(r.text.match(/#\S+/g)||[]).length===3));
  const results=await Promise.all(['a','b'].map(id=>send({kind:'LIBRARY_OP',op:{action:'upsert',id,row:{id,type:'post',text:id},expected:null}},panel)));
  assert.ok(results.every(r=>r.ok));assert.ok(stored.app.rows.some(r=>r.id==='a'));assert.ok(stored.app.rows.some(r=>r.id==='b'));
  const started=await rt('begin',{account:'/me'});assert.equal(started.ok,true);const runId=started.state.runId;
@@ -39,4 +39,16 @@ test('posting confirmation and schedule persist atomically through stop, restart
  events.startup();await tick();
  const again=await rt('begin',{account:'/me'});assert.equal(again.state.nextAt,next);assert.equal(again.state.lastPostedAt,last);
  await rt('stop');
+});
+
+test('heartbeat bypasses a busy mutation queue but still validates sender',async()=>{
+ const get=chrome.storage.local.get;let release,started;
+ const waiting=new Promise(r=>{started=r;});
+ chrome.storage.local.get=async key=>{if(key==='app'){started();await new Promise(r=>{release=r;});}return get(key);};
+ const pending=send({kind:'GET'},panel);await waiting;
+ try{
+  const pong=await Promise.race([send({kind:'PING'}),new Promise(r=>setTimeout(()=>r('timeout'),30))]);
+  assert.notEqual(pong,'timeout');assert.equal(pong.ok,true);
+  assert.equal((await send({kind:'PING'},{...sender,url:'https://other.example/'})).ok,false);
+ }finally{chrome.storage.local.get=get;release();await pending;}
 });

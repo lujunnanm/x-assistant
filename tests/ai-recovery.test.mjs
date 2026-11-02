@@ -6,3 +6,25 @@ test('invalid output regenerates once then skips; following generation still run
 test('authority failure is not swallowed or retried',async()=>{let n=0;await assert.rejects(recoverGeneration(async()=>{n++;throw Error('HTTP 500');},{...options(),check:async()=>{throw Error('任务已停止');}}),/任务已停止/);assert.equal(n,0);});
 test('diagnostics never include raw secret-bearing messages',()=>{assert.equal(safeAIError(Error('secret=example')), 'AI 生成失败（未发送）');});
 test('authentication and billing failures terminate instead of skip loops',async()=>{for(const status of [401,402,403]){let count=0;await assert.rejects(recoverGeneration(async()=>{count++;throw Error('HTTP '+status);},options()),/协同已停止/);assert.equal(count,1);}});
+test('model skip and generation failure have separate machine-readable outcomes',async()=>{
+ const intentional=await recoverGeneration(async()=>({action:'skip',skipReason:'model_choice'}),options());
+ assert.equal(intentional.skippedGenerationError,undefined);
+ const reports=[];const failed=await recoverGeneration(async()=>{throw Error('HTTP 429');},{...options(),report:async r=>reports.push(r)});
+ assert.equal(failed.outcome,'generation_error');assert.equal(failed.reasonCode,'http_429');assert.equal(failed.postId,'123');
+ assert.deepEqual(reports.map(r=>r.retrying),[true,true,false]);
+});
+test('aborted generation is neither reported nor converted to skip',async()=>{
+ let reports=0;await assert.rejects(recoverGeneration(async()=>{throw new DOMException('cancelled','AbortError');},{...options(),report:async()=>reports++}),{name:'AbortError'});assert.equal(reports,0);
+});
+test('stale run after completed generation discards late result',async()=>{
+ let checks=0;await assert.rejects(recoverGeneration(async()=>({action:'send_reply',text:'body'}),{...options(),check:async()=>{if(++checks>1)throw Error('任务已停止');}}),/任务已停止/);
+});
+test('known model and configuration HTTP errors stop instead of endlessly skipping',async()=>{
+ for(const status of [400,404]){let n=0;await assert.rejects(recoverGeneration(async()=>{n++;throw Error('HTTP '+status);},options()),/协同已停止/);assert.equal(n,1);}
+});
+test('structured validation codes survive while arbitrary error messages never escape',async()=>{
+ const {createAIError,classifyAIError}=await import('../ai-recovery.mjs');
+ assert.equal(classifyAIError(createAIError('content_forbidden')).code,'content_forbidden');
+ assert.equal(classifyAIError(createAIError('content_forbidden')).attempts,2);
+ assert.equal(safeAIError({code:'untrusted',message:'Authorization Bearer private-value'}),'AI 生成失败（未发送）');
+});

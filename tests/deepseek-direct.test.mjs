@@ -5,19 +5,30 @@ test('missing key errors before any network request',async()=>{const f=fixture()
 test('API failure exposes status only, not provider body',async()=>{const f=fixture(401),r=await directGenerate('/reply',{body:'{}'},f);assert.deepEqual(await r.json(),{error:'HTTP 401'});});
 test('stored key is reread on each generation, not cached in worker',async()=>{const f=fixture();let reads=0;f.storage.get=async()=>{reads++;return{[API_KEY_STORAGE]:'fixture-only-secret'};};await directGenerate('/reply',{body:'{}'},f);await directGenerate('/reply',{body:'{}'},f);assert.equal(reads,2);});
 test('credential preflight rejects invalid credentials and accepts success',async()=>{const {verifyCredential}=await import('../deepseek-direct.mjs');await assert.rejects(verifyCredential('fixture',{fetcher:async()=>({ok:false,status:401})}),/认证失败/);assert.equal(await verifyCredential('fixture',{fetcher:async()=>({ok:true})}),true);});
-test('both proactive and notification replies ignore legacy multilingual footer',async()=>{
+test('notification replies ignore legacy footer fields without changing natural body',async()=>{
  for(const [text,footer] of [['Start with one small step.','Let’s connect—please follow back.'],['小さな一歩から始めましょう。','仲良くしましょう。フォローバックお願いします。']]){
   const f=fixture();f.fetcher=async url=>url.startsWith('extension:')?{text:async()=>'rules'}:{ok:true,status:200,json:async()=>({choices:[{finish_reason:'stop',message:{content:JSON.stringify({action:'send_reply',text,footer})}}]})};
-  const r=await directGenerate('/reply',{body:'{}'},f);assert.equal((await r.json()).text,text);
   const n=await directGenerate('/notification-reply',{body:'{}'},f);assert.equal((await n.json()).text,text);
  }
 });
-test('notification mode includes dedicated short-social-reply rules in system prompt',async()=>{
+test('notification mode applies the same high-value reply threshold',async()=>{
  const f=fixture();await directGenerate('/notification-reply',{body:JSON.stringify({text:'谢谢'})},f);
  const request=JSON.parse(f.calls[1].opts.body);
- assert.match(request.messages[0].content,/不要仅因字数少而 skip/);
+ assert.match(request.messages[0].content,/通知回帖同样执行价值门槛/);
  assert.equal(request.messages[1].content,JSON.stringify({post_text:'谢谢'}));
  assert.equal(request.model,'deepseek-flash');
+});
+test('interaction mode always replies and allows a social follow-back fallback',async()=>{
+ const f=fixture();await directGenerate('/reply',{body:JSON.stringify({text:'今天的日常'})},f);
+ assert.equal(f.calls[0].url,'extension://bridge/interaction-reply-rules.txt');
+ const request=JSON.parse(f.calls[1].opts.body);
+ assert.match(request.messages[0].content,/禁止返回 skip/);
+ assert.match(request.messages[0].content,/交友、请求回关或互动邀请/);
+});
+test('interaction model skip is deterministically converted to a same-language fallback',async()=>{
+ const f=fixture();f.fetcher=async url=>url.startsWith('extension:')?{text:async()=>'rules'}:{ok:true,status:200,json:async()=>({choices:[{finish_reason:'stop',message:{content:JSON.stringify({action:'skip',text:''})}}]})};
+ const r=await directGenerate('/reply',{body:JSON.stringify({text:'今天冒个泡'})},f);
+ assert.deepEqual(await r.json(),{action:'send_reply',text:'来交个朋友，方便的话回关一下。'});
 });
 test('malformed and truncated completions cannot be treated as valid results',async()=>{
  for(const choice of [{finish_reason:'length',message:{content:'{}'}},{finish_reason:'stop',message:{content:'not json'}},{finish_reason:'stop',message:{content:'[]'}},{finish_reason:'stop',message:{content:'null'}}]){

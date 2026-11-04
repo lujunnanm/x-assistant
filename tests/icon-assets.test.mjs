@@ -8,5 +8,5 @@ test('upgraded icon sizes retain alpha and are not recolored',async()=>{
   assert.equal(b.subarray(1,4).toString(),'PNG');assert.equal(b.readUInt32BE(16),size);assert.equal(b.readUInt32BE(20),size);assert.equal(b[25],6);
  }
  const css=await readFile(new URL('../overlay.css',import.meta.url),'utf8');
- assert.ok(css.includes('#x-assistant-float .brand-icon{filter:none}'));
+ assert.ok(!/\.brand-icon[^}]*filter:/.test(css));
 });

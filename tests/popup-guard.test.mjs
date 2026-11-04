@@ -33,3 +33,46 @@ test('save confirmation above a still-mounted composer takes priority',async()=>
  const ctx=vm.createContext({document:{querySelectorAll:()=>dialogs},setTimeout:f=>setTimeout(f,0)});vm.runInContext(source,ctx);
  assert.equal(await ctx.XAssistantPopup.cancel(),true);assert.deepEqual(clicked,['放弃']);
 });
+
+// X can mount an empty modal shell before its close button/editor is rendered.
+function delayedFixture({renderAt=0,closeDelay=0,concurrent=false,stuck=false}={}) {
+ let now=0,closeAt=Infinity,clicks=0;
+ const close={textContent:'关闭',getAttribute:()=>null,click:()=>{clicks++;closeAt=now+closeDelay;}};
+ const d={get textContent(){return now<renderAt?'':'回复';},
+  querySelector:s=>s.includes('app-bar-close')&&now>=renderAt?close:null,
+  querySelectorAll:()=>now>=renderAt?[close]:[]};
+ class Clock extends Date {static now(){return now;}}
+ const ctx=vm.createContext({Date:Clock,document:{querySelectorAll:()=>!stuck&&now>=closeAt?[]:[d]},
+  setTimeout:(f,ms)=>setTimeout(()=>{now+=ms;f();},0)});
+ vm.runInContext(source,ctx);
+ return {run:()=>concurrent?Promise.all([ctx.XAssistantPopup.cancel(),ctx.XAssistantPopup.cancel()]):ctx.XAssistantPopup.cancel(),clicks:()=>clicks,now:()=>now};
+}
+test('waits for the loading modal to render its close button instead of stopping immediately',async()=>{
+ const f=delayedFixture({renderAt:1800});assert.equal(await f.run(),true);assert.equal(f.clicks(),1);
+});
+test('waits for a slow close transition without repeatedly clicking the same button',async()=>{
+ const f=delayedFixture({closeDelay:1800});assert.equal(await f.run(),true);assert.equal(f.clicks(),1);
+});
+test('concurrent cleanup calls share one dismissal',async()=>{
+ const f=delayedFixture({concurrent:true,closeDelay:500});assert.deepEqual(await f.run(),[true,true]);assert.equal(f.clicks(),1);
+});
+test('unresponsive close has a bounded wait and cannot produce a click storm',async()=>{
+ const f=delayedFixture({stuck:true});assert.equal(await f.run(),false);assert.equal(f.clicks(),1);assert.ok(f.now()<=10500);
+});
+test('quoted post mentioning Save post is not a draft confirmation',async()=>{
+ let present=true;const clicked=[];
+ const close={textContent:'关闭',getAttribute:()=>null,click:()=>{clicked.push('关闭');present=false;}};
+ const d={textContent:'Save post for later? quoted source text',querySelector:s=>s.includes('app-bar-close')?close:s.includes('contenteditable')?{}:null,querySelectorAll:()=>[close]};
+ const ctx=vm.createContext({document:{querySelectorAll:()=>present?[d]:[]},setTimeout:f=>setTimeout(f,0)});vm.runInContext(source,ctx);
+ assert.equal(await ctx.XAssistantPopup.cancel(),true);assert.deepEqual(clicked,['关闭']);
+});
+test('a draft sheet mounted after a short no-dialog gap is discarded before returning success',async()=>{
+ let now=0,closing=false,done=false;const clicked=[];
+ const close={textContent:'关闭',getAttribute:()=>null,click:()=>{clicked.push('关闭');closing=true;}};
+ const drop={textContent:'放弃',getAttribute:()=>null,click:()=>{clicked.push('放弃');done=true;}};
+ const composer={textContent:'回复',querySelector:s=>s.includes('app-bar-close')?close:null,querySelectorAll:()=>[close]};
+ const prompt={textContent:'保存帖子？',querySelector:()=>null,querySelectorAll:()=>[drop]};
+ class Clock extends Date {static now(){return now;}}
+ const ctx=vm.createContext({Date:Clock,document:{querySelectorAll:()=>done?[]:!closing?[composer]:now<200?[]:[prompt]},setTimeout:(f,ms)=>setTimeout(()=>{now+=ms;f();},0)});
+ vm.runInContext(source,ctx);assert.equal(await ctx.XAssistantPopup.cancel(),true);assert.deepEqual(clicked,['关闭','放弃']);
+});

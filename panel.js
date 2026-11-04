@@ -1,3 +1,4 @@
+import './time-policy.js';
 import {verifyCredential} from './deepseek-direct.mjs';
 import {collectFollowing} from './following.mjs';
 const $=id=>document.getElementById(id);let state,editing=null,busy=false,lastRows=null;
@@ -13,6 +14,8 @@ for(const [label,fn] of [['编辑',()=>{$('editor-details').open=true;editing=st
 $('editor').onsubmit=action(async e=>{e.preventDefault();const id=$('rowid').value||crypto.randomUUID(),old=state.rows.find(x=>x.id===id);const row={id,type:$('rowtype').value,text:$('text').value,enabled:old?.enabled??true,...(old?.image&&$('rowtype').value==='post'?{image:old.image}:{})};render(await send('LIBRARY_OP',{op:{action:'upsert',id,expected:editing,row}}));$('editor').reset();$('rowid').value='';editing=null;note('条目已保存');});
 $('cancel').onclick=()=>{$('editor').reset();$('rowid').value='';editing=null;};
 $('import').onchange=action(async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>2*1024*1024)throw Error('文件超过 2 MB');const {validateRows}=await import('./core.mjs');const incoming=validateRows(JSON.parse(await file.text()));const merged=new Map(state.rows.map(r=>[r.id,r]));incoming.forEach(r=>merged.set(r.id,r));render(await send('LIBRARY_OP',{op:{action:'merge',rows:incoming}}));note(`已导入 ${incoming.length} 条，按 ID 合并`);}finally{e.target.value='';}});
+$('replace-library').onchange=action(async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>2*1024*1024)throw Error('文件超过 2 MB');const {validateRows}=await import('./core.mjs');const incoming=validateRows(JSON.parse(await file.text()));if(!incoming.length)throw Error('替换文件不能为空');if(!confirm(`将备份并删除现有全部 ${state.rows.length} 条文案（包括评论），替换为 ${incoming.length} 条。确认继续？`))return;const updated=await send('LIBRARY_OP',{op:{action:'replace',rows:incoming,expectedRevision:state.revision}});render(updated);note(`已备份旧文案并替换为 ${updated.rows.length} 条`);}finally{e.target.value='';}});
+$('export-backup').onclick=()=>{if(!state.libraryBackup?.rows){note('没有替换备份','error');return;}const url=URL.createObjectURL(new Blob([JSON.stringify(state.libraryBackup.rows,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='x-copy-library-before-replace.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 $('export').onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(state.rows,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='x-copy-library.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 
 chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'){if(changes.app)changes.app.newValue&&render(changes.app.newValue);if(changes.xAssistantFollowedV1||changes.xAssistantFollowingScanV1)renderFollowing();}});
@@ -32,7 +35,7 @@ $('following-read').onclick=action(async()=>{
 $('following-export').onclick=action(async()=>{const data=(await chrome.storage.local.get('xAssistantFollowedV1')).xAssistantFollowedV1||{handles:{}};const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='x-following-library.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
 renderFollowing();
 
-function navigate(){const hash=location.hash||'#ai-settings';document.querySelectorAll('.sidebar nav a').forEach(a=>{if(a.getAttribute('href')===hash)a.setAttribute('aria-current','true');else a.removeAttribute('aria-current');});if(hash==='#logs'){const block=$('logs-section');block.querySelector('details').open=true;block.scrollIntoView();}else if(['#library','#following','#ai-settings'].includes(hash)&&location.hash)document.querySelector(hash).scrollIntoView();}
+function navigate(){const hash=location.hash||'#ai-settings';document.querySelectorAll('.sidebar nav a').forEach(a=>{if(a.getAttribute('href')===hash)a.setAttribute('aria-current','true');else a.removeAttribute('aria-current');});if(hash==='#logs'){const block=$('logs-section');block.querySelector('details').open=true;block.scrollIntoView();}else if(['#library','#following','#ai-settings','#time-settings'].includes(hash)&&location.hash)document.querySelector(hash).scrollIntoView();}
 window.addEventListener('hashchange',navigate);navigate();
 
 const API_KEY_STORAGE='xAssistantDeepSeekKeyV1';
@@ -40,3 +43,43 @@ async function keyStatus(){const d=await chrome.storage.local.get(API_KEY_STORAG
 $('api-form').onsubmit=action(async()=>{const value=$('api-key').value.trim();if(value.length<16||value.length>256||/\s/.test(value))throw Error('密钥格式无效');$('api-status').dataset.state='checking';$('api-status').textContent='正在验证 API 密钥…';try{await verifyCredential(value);}catch(e){$('api-status').dataset.state='error';$('api-status').textContent=e.message+'；新密钥未保存';throw e;}await chrome.storage.local.set({[API_KEY_STORAGE]:value});await chrome.storage.local.set({xAssistantAIStatusV1:{error:null,time:Date.now()}});$('api-key').value='';await keyStatus();note('密钥已验证并保存。输入框已清空以隐藏密钥，重启无需重填。');});
 $('api-remove').onclick=action(async()=>{await chrome.storage.local.remove(API_KEY_STORAGE);await keyStatus();note('插件密钥已删除');});
 keyStatus().catch(()=>note('无法读取密钥配置状态'));
+
+const timing = globalThis.XAssistantTimePolicy;
+let timingDirty = false;
+function renderTiming(config) {
+ const values=timing.normalize(config);
+ $('time-fields').replaceChildren(...Object.entries(timing.fields).map(([name,field])=>{
+  const row=document.createElement('div');row.className='time-row';
+  const title=document.createElement('label');title.htmlFor=`time-${name}-min`;title.textContent=field.label;row.append(title);
+  for(const side of field.range?['min','max']:['min']){
+   const label=document.createElement('label');label.className='time-value';label.textContent=field.range?(side==='min'?'最短':'最长'):'时长';
+   const input=document.createElement('input');input.type='number';input.required=true;input.min=field.floor;input.max=field.ceiling;input.step=1;
+   input.id=`time-${name}-${side}`;input.value=values[name][side];input.setAttribute('aria-label',`${field.label} ${label.textContent}（秒）`);label.append(input);row.append(label);
+  }
+  return row;
+ }));
+ timingDirty=false;
+}
+$('time-form').addEventListener('input',()=>{timingDirty=true;$('time-status').textContent='有未保存的时间设置';});
+$('time-form').onsubmit=action(async()=>{
+ const config=Object.fromEntries(Object.entries(timing.fields).map(([name,field])=>{
+  const min=Number($(`time-${name}-min`).value),max=field.range?Number($(`time-${name}-max`).value):min;return [name,{min,max}];
+ }));
+ const saved=await send('TIME_SAVE',{config:timing.normalize(config)});renderTiming(saved);$('time-status').textContent='时间设置已保存；下一次计时生效';
+});
+$('time-reset').onclick=()=>{renderTiming({});timingDirty=true;$('time-status').textContent='已填入默认值，点击保存后生效';};
+send('TIME_GET').then(config=>{if(!timingDirty)renderTiming(config);$('time-status').textContent='已读取本地时间配置';}).catch(error=>{$('time-status').textContent=error.message;});
+chrome.storage.onChanged.addListener((changes,area)=>{
+ if(area==='local'&&changes[timing.KEY]&&!timingDirty){renderTiming(changes[timing.KEY].newValue);$('time-status').textContent='已同步最新时间配置';}
+});
+
+// Read-only counters from the interaction driver; never triggers a task.
+function renderInteractionDiagnostics(state){
+ const d=state?.diagnostics,node=$('interaction-diagnostics');
+ if(!d){node.textContent='互动筛选统计：新版开始互动后记录。';return;}
+ const labels={self:'自身帖子',confirmed:'已确认成功',uncertain:'结果待核对',retry_cooldown:'暂时退避',author_confirmed:'本轮已回复作者',views_missing:'曝光无法读取',low_views:'曝光不足500',unrelated:'交友语义不符',ai_error:'AI生成失败',ai_skip:'AI主动跳过',send_failed:'发送前失败',unknown:'发送结果未知'};
+ const group=counts=>Object.entries(counts||{}).map(([key,count])=>`${labels[key]||key} ${count}`).join(' · ')||'暂无记录';
+ node.textContent=`互动筛选统计 · 本次进程已检查 ${d.seen||0} 条。筛选排除：${group(d.skips)}。尝试结果：${group(d.outcomes)}。同一帖子不同原因分别计数；未提交失败可稍后重试。`;
+}
+chrome.storage.local.get('xAssistantRuntimeV1').then(d=>renderInteractionDiagnostics(d.xAssistantRuntimeV1)).catch(()=>{$('interaction-diagnostics').textContent='互动统计读取失败，请刷新设置页';});
+chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes.xAssistantRuntimeV1)renderInteractionDiagnostics(changes.xAssistantRuntimeV1.newValue);});

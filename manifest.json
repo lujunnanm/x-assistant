@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "神圣计划",
-  "version": "4.0.14",
-  "description": "X 自动化运营控制台：发帖、互动、回帖协同调度，DeepSeek 同语种生成，发送回执核验与独立清理。",
+  "version": "5.0.1",
+  "description": "X 自动化运营控制台：发帖、互动、回帖协同调度，DeepSeek 同语种生成，发送回执核验。",
   "permissions": [
     "storage",
     "alarms",
@@ -33,21 +33,22 @@
         "https://x.com/*"
       ],
       "js": [
+        "time-policy.js",
+        "time-client.js",
         "interaction-core.js",
         "runtime-client.js",
         "coordination.js",
         "posting-receipt.js",
-        "cleanup-core.js",
         "scheduler-core.js",
         "popup-guard.js",
         "task-utils.js",
         "x-dom.js",
         "reply-engine.js",
         "notification-policy.js",
+        "view.js",
         "overlay.js",
         "notifications.js",
         "posting.js",
-        "cleanup.js",
         "module-entry.js",
         "scheduler.js",
         "compact-controls.js"
@@ -69,7 +70,8 @@
     {
       "resources": [
         "icons/icon-48.png",
-        "post-images/*.jpg"
+        "post-images/*.jpg",
+        "icons/stone-grain.png"
       ],
       "matches": [
         "https://x.com/*"

@@ -1,61 +1,12 @@
+// Interaction driver; the scheduler is the only start/stop entry point.
 (()=>{
- if(document.getElementById('x-assistant-float'))return;
+ const root=document.getElementById('x-assistant-float');if(!root)return;
  const api=globalThis.XAssistantRuntime;let activeRun=null,account=null;
  const core=globalThis.XAssistantCore,RUNTIME='xAssistantRuntimeV1',FOLLOWED='xAssistantFollowedV1',PROCESSED='xAssistantProcessedV1';
- const root=document.createElement('aside');root.id='x-assistant-float';root.innerHTML=`
- <header><strong><img class="brand-icon" src="${chrome.runtime.getURL('icons/icon-48.png')}" alt="">神圣计划</strong><button class="close" data-a="hide" aria-label="收起控制台" aria-expanded="true" title="收起控制台">—</button></header>
- <section data-module="interaction"><span class="module-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12a10 10 0 0 1-10 10H3l2-5A10 10 0 1 1 22 12Z"/><path d="M8 12h.1M12 12h.1M16 12h.1"/></svg></span><b>互动</b><label class="follow-option"><input type="checkbox" data-setting="auto-follow" checked disabled>自动关注</label><div class="row"><button data-a="start">开始</button><button class="danger" data-a="stop" disabled>结束</button></div><div class="status" data-status="interaction" role="status">互动模块已停止</div></section>
- <section data-module="posting"><span class="module-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m5 21 1-6L18 3l5 5L11 20Z M15 6l5 5"/></svg></span><b>发帖</b><div class="row"><button data-a="post-start" disabled>开始</button><button class="danger" data-a="post-stop" disabled>结束</button></div></section>
- <section data-module="notifications"><span class="module-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12a10 10 0 0 1-10 10H3l2-5A10 10 0 1 1 22 12Z"/><path d="M8 12h.1M12 12h.1M16 12h.1"/></svg></span><b>回帖</b><div class="row"><button data-a="reply-start">开始</button><button class="danger" data-a="reply-stop" disabled>结束</button></div><div class="status" data-status="notifications" role="status">回帖已停止</div></section>
- <section data-module="cleanup"><span class="module-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6h14M9 6V3h6v3M7 6l1 15h8l1-15M10 9v9M14 9v9"/></svg></span><b>清理</b><div class="row"><button data-a="clean-start" disabled>开始</button><button class="danger" data-a="clean-stop" disabled>结束</button></div></section>`;document.documentElement.append(root);
-root.dataset.build='4.0.14';
- const aiAlert=document.createElement('div');aiAlert.setAttribute('role','alert');aiAlert.style.cssText='color:#ffb4b4;background:#421f2b;padding:10px;white-space:normal';root.insertBefore(aiAlert,root.children[1]);
- const showAIError=s=>{aiAlert.hidden=!s?.error;aiAlert.textContent=s?.error?'AI 异常：'+s.error+' · 第 '+s.attempt+' 次失败 · '+(s.retrying?'正在重试，尚未发送':'生成失败，尚未发送。请检查网络、API 余额或插件密钥设置。'):'';};
- showAIError(null);chrome.storage.local.get('xAssistantAIStatusV1').then(d=>showAIError(d.xAssistantAIStatusV1));
- chrome.storage.onChanged.addListener((c,area)=>{if(area==='local'&&c.xAssistantAIStatusV1)showAIError(c.xAssistantAIStatusV1.newValue);});
-
- const invalidate=message=>{window.dispatchEvent(new CustomEvent('x-assistant-invalidate',{detail:{reason:message}}));root.querySelectorAll('button').forEach(button=>button.disabled=true);root.querySelectorAll('[role="status"]').forEach(status=>status.textContent=message);};
- // A sleeping MV3 worker may miss one heartbeat. Stop only on repeated failures.
- let heartbeatFailures=0,heartbeatPending=false;
- const heartbeat=setInterval(async()=>{
-  if(heartbeatPending)return;
-  heartbeatPending=true;let timeout;
-  try{
-   const reply=await Promise.race([chrome.runtime.sendMessage({kind:'PING'}),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('后台响应超时')),4000);})]);
-   if(!reply?.ok)throw Error('后台无有效响应');
-   heartbeatFailures=0;
-  }catch(error){
-   if(++heartbeatFailures>=3){clearInterval(heartbeat);invalidate(/Extension context invalidated/i.test(error.message)?'扩展已更新，请刷新当前 X 页面':'后台连续 3 次连接失败，已安全停止。请刷新页面后重试');}
-  }finally{clearTimeout(timeout);heartbeatPending=false;}
- },5000);
- window.addEventListener('pagehide',()=>clearInterval(heartbeat),{once:true});
- root.querySelectorAll('section').forEach(section=>{
- const posting=section.dataset.module==='posting';
- const timer=document.createElement('div');timer.className='countdown';timer.innerHTML='<span>—</span><small>秒</small>';section.insertBefore(timer,section.querySelector('.row'));
- const sync=()=>{
-  const output=section.querySelector('.status'),text=output?.textContent?.trim()||'',lamp=section.querySelector('.state-lamp');
-  const routine=/^(?:互动|发帖|回帖|清理)?(?:模块)?已停止(?:\s*·.*)?$/.test(text);
-  const error=/(?:异常|失败|错误|无法|未知|超时|中断|断开|不一致|未确认|未成功|不匹配|已更新|未找到|请刷新|失效|未配置|余额|额度|安全停止)/.test(text.replace('（并非发送失败）',''));
-  // Scheduler ownership outranks stale driver steps while a module has yielded.
-  const yielding=!!lamp&&lamp.dataset.state!=='on'&&(!posting||lamp.dataset.state==='off');
-  const showDetail=!lamp||error;
-  if(output)output.hidden=!showDetail;
-  if(lamp){lamp.dataset.quiet=String(showDetail);lamp.setAttribute('aria-hidden',String(showDetail));}
-  const match=text.match(/(?:下次(?:发帖|清理|检查)\s*|·\s*)([0-9]+(?:\.[0-9]+)?)\s*秒/),seconds=!yielding&&match?Number(match[1]):null;
-  const value=seconds===null?'—':seconds>=60?`${Math.floor(seconds/60)}:${String(Math.floor(seconds%60)).padStart(2,'0')}`:seconds.toFixed(1);
-  if(timer.querySelector('span').textContent!==value)timer.querySelector('span').textContent=value;
-  timer.querySelector('small').hidden=seconds===null||seconds>=60;
-  timer.setAttribute('aria-label',seconds===null?'暂无倒计时':`剩余 ${seconds.toFixed(1)} 秒`);
-
-  section.title=error||!yielding?text:lamp?.textContent||text;
- };new MutationObserver(sync).observe(section,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['data-state']});sync();
- });
  const $=s=>root.querySelector(s);let pauseRequested=false,running=false,controller=null,selected=null,hidden=false,sessionAuthors=new Set(),runPromise=Promise.resolve();
- const interactionStart=$('[data-a="start"]'),interactionStop=$('[data-a="stop"]');
  const interactionSection=$('[data-module="interaction"]');
  const setProgress=value=>interactionSection.style.setProperty('--progress',Math.max(0,Math.min(1,value)));
  const status=t=>($('[data-status="interaction"]').textContent=t,!/秒/.test(t)&&setProgress(0));
- const setButtons=on=>{interactionStart.disabled=on;interactionStop.disabled=!on;};
  const getLocal=async key=>(await chrome.storage.local.get(key))[key],setLocal=(key,value)=>chrome.storage.local.set({[key]:value});
  const runtime=async()=>await getLocal(RUNTIME)||{active:false,runId:null,cycleIndex:0,completed:0,phase:'stopped'};
  const updateRuntime=patch=>api.runtime('interaction','patch',{runId:activeRun,patch});
@@ -68,18 +19,44 @@ root.dataset.build='4.0.14';
  const addFollowed=(info,source)=>api.call({kind:'FOLLOW_MERGE',rows:[{handle:'@'+info.author,displayName:info.displayName||'',lastSeenAt:new Date().toISOString(),source,owner:account?.slice(1)}]});
  const processed=async()=>await getLocal(PROCESSED)||{posts:{}};
  const saveProcessed=(info,record)=>api.call({kind:'PROCESSED',id:info.id,record:{author:'@'+info.author,url:info.url,at:new Date().toISOString(),...record}});
- const abortError=()=>new DOMException('互动已结束','AbortError'),check=s=>{if(s.aborted)throw abortError();if(account&&selfHandle()!==account.slice(1).toLowerCase())throw Error('账号发生变化，已停止');};
+ const abortError=()=>new DOMException('互动已结束','AbortError'),check=s=>{if(s.aborted)throw abortError();if(account&&selfHandle()!==account.slice(1).toLowerCase())throw Object.assign(Error('账号发生变化，当前项已跳过'),{code:'ACCOUNT_CHANGED'});};
  const sleep=(ms,signal)=>new Promise((resolve,reject)=>{check(signal);const id=setTimeout(done,ms);function done(){signal.removeEventListener('abort',abort);resolve();}function abort(){clearTimeout(id);reject(abortError());}signal.addEventListener('abort',abort,{once:true});});
- const randomWait=async(min,max,signal,label)=>{const seconds=core.randomSeconds(min,max),total=seconds*1000,deadline=performance.now()+total;for(;;){check(signal);const remaining=Math.max(0,deadline-performance.now());setProgress(1-remaining/total);$('[data-status="interaction"]').textContent=`${label} · ${core.formatSeconds(remaining/1000)} 秒`;if(remaining<=0){setProgress(0);return;}await sleep(Math.min(100,remaining),signal);}};
+ const randomWait=async(min,max,signal,label)=>{const seconds=core.randomSeconds(min,max),total=seconds*1000,deadline=performance.now()+total;if(total<=0){setProgress(0);return;}for(;;){check(signal);const remaining=Math.max(0,deadline-performance.now());setProgress(1-remaining/total);$('[data-status="interaction"]').textContent=`${label} · ${core.formatSeconds(remaining/1000)} 秒`;if(remaining<=0){setProgress(0);return;}await sleep(Math.min(100,remaining),signal);}};
 
- const postInfo=a=>{const link=[...a.querySelectorAll('a[href]')].find(x=>x.querySelector('time'));if(!link)return null;const u=new URL(link.href),m=u.pathname.match(/^\/([A-Za-z0-9_]{1,15})\/status\/(\d+)$/);if(u.origin!=='https://x.com'||!m)return null;const author=m[1],authorLink=[...a.querySelectorAll('a[href]')].find(x=>{try{return new URL(x.href).pathname.toLowerCase()==='/'+author.toLowerCase()}catch{return false}}),analytics=a.querySelector(`a[href$="/status/${m[2]}/analytics"]`),viewLabel=analytics?.getAttribute('aria-label')||analytics?.textContent||'';return {quoteHandles:[...a.querySelectorAll('[role="link"]:not(a)')].flatMap(q=>[...(q.textContent||'').matchAll(/@([A-Za-z0-9_]{1,15})/g)].map(m=>m[1].toLowerCase())),article:a,url:u.origin+u.pathname,path:u.pathname,author,id:m[2],displayName:(authorLink?.textContent||'').trim(),text:(a.querySelector('[data-testid="tweetText"]')?.textContent||'（无文本内容）').trim(),time:a.querySelector('time')?.getAttribute('datetime'),views:globalThis.XAssistantCleanupCore.parseViews(viewLabel)};};
+ const postInfo=a=>{const link=[...a.querySelectorAll('a[href]')].find(x=>x.querySelector('time'));if(!link)return null;const u=new URL(link.href),m=u.pathname.match(/^\/([A-Za-z0-9_]{1,15})\/status\/(\d+)$/);if(u.origin!=='https://x.com'||!m)return null;const author=m[1],authorLink=[...a.querySelectorAll('a[href]')].find(x=>{try{return new URL(x.href).pathname.toLowerCase()==='/'+author.toLowerCase()}catch{return false}}),analytics=a.querySelector(`a[href$="/status/${m[2]}/analytics"]`),viewLabel=analytics?.getAttribute('aria-label')||analytics?.textContent||'';return {quoteHandles:[...a.querySelectorAll('[role="link"]:not(a)')].flatMap(q=>[...(q.textContent||'').matchAll(/@([A-Za-z0-9_]{1,15})/g)].map(m=>m[1].toLowerCase())),article:a,url:u.origin+u.pathname,path:u.pathname,author,id:m[2],displayName:(authorLink?.textContent||'').trim(),text:(a.querySelector('[data-testid="tweetText"]')?.textContent||'（无文本内容）').trim(),time:a.querySelector('time')?.getAttribute('datetime'),views:core.parseViews(viewLabel)};};
  const selfHandle=()=>{const a=document.querySelector('a[data-testid="AppTabBar_Profile_Link"]');try{return new URL(a?.href).pathname.slice(1).toLowerCase()}catch{return'';}};
  const visiblePosts=()=>[...document.querySelectorAll('article[data-testid="tweet"]')].map(postInfo).filter(x=>x&&x.article.getBoundingClientRect().bottom>0&&x.article.getBoundingClientRect().top<innerHeight&&!/Promoted|推广|推荐广告/i.test(x.article.innerText));
  const clickNative=b=>{b.scrollIntoView({block:'center'});b.focus?.({preventScroll:true});if(typeof PointerEvent==='function'){const c={bubbles:true,cancelable:true,view:window,button:0,buttons:1,pointerId:1,pointerType:'mouse',isPrimary:true};b.dispatchEvent(new PointerEvent('pointerdown',c));b.dispatchEvent(new MouseEvent('mousedown',c));b.dispatchEvent(new PointerEvent('pointerup',{...c,buttons:0}));b.dispatchEvent(new MouseEvent('mouseup',{...c,buttons:0}));}b.click();};
  const waitFor=(probe,count=80,delay=100,signal)=>globalThis.XAssistantTasks.waitFor(()=>{if(signal)check(signal);return probe();},{signal,timeout:count*delay,interval:delay});
  const closeMenu=async(caret,menu,signal)=>{if(menu&&document.contains(menu))clickNative(caret);await waitFor(()=>!document.contains(menu),20,50,signal);};
  const inspectFollowState=async(info,signal)=>{check(signal);const caret=info.article.querySelector('[data-testid="caret"]');if(!caret)return'unknown';clickNative(caret);const menu=await waitFor(()=>document.querySelector('[role="menu"]'),50,100,signal);if(!menu)return'unknown';const own=t=>t.toLowerCase().includes('@'+info.author.toLowerCase()),items=[...menu.querySelectorAll('[role="menuitem"]')],text=x=>(x.textContent||'').trim();let state='unknown';if(items.some(x=>own(text(x))&&/^(取消关注|Unfollow)\s/i.test(text(x))))state='followed';else if(items.some(x=>own(text(x))&&/^(关注|回关|Follow|Follow back)\s/i.test(text(x))))state='unfollowed';await closeMenu(caret,menu,signal);if(state==='followed')await addFollowed(info,'observed');return state;};
- const findCandidate=async(desired,signal,followEnabled)=>{if(document.querySelector('[role="dialog"]'))throw Error('页面已有弹窗，请先处理草稿');for(let screen=0;screen<=6;screen++){check(signal);if(pauseRequested)return null;const done=await processed(),self=selfHandle();if(!self)throw Error('无法核对当前账号');for(const info of visiblePosts()){if(info.author.toLowerCase()===self||done.posts[info.id]||sessionAuthors.has(info.author.toLowerCase()))continue;if(!followEnabled){if(core.highExposure(info.views,5000))return{...info,followState:'unrestricted'};continue;}const state=await inspectFollowState(info,signal);if(state===desired)return{...info,followState:state};}if(screen<6){const label=followEnabled?(desired==='followed'?'已关注':'未关注'):'曝光高于 5000';status(`本屏无${label}目标，滚动第 ${screen+1}/6 屏`);window.scrollBy({top:Math.max(600,innerHeight*.9),behavior:'smooth'});await sleep(1400,signal);}}return null;};
+ const reasonLabels={self:'自己的帖子',confirmed:'已成功回复',uncertain:'发送结果待核对',retry_cooldown:'暂时退避',author_confirmed:'本轮已回复该作者',views_missing:'曝光无法读取',low_views:'曝光不足500',unrelated:'交友语义不符'};
+ let diagnostics={seen:0,skips:{},outcomes:{},last:null},observedPosts=new Set(),observedReasons=new Set();
+ const recordCandidate=(info,reason)=>{
+  if(!observedPosts.has(info.id)){observedPosts.add(info.id);diagnostics.seen++;}
+  const key=info.id+':'+reason;
+  if(reason&&!observedReasons.has(key)){observedReasons.add(key);diagnostics.skips[reason]=(diagnostics.skips[reason]||0)+1;diagnostics.last={postId:info.id,reason,at:Date.now()};}
+ };
+ const recordOutcome=(info,reason)=>{diagnostics.outcomes[reason]=(diagnostics.outcomes[reason]||0)+1;diagnostics.last={postId:info.id,reason,at:Date.now()};};
+ const publishDiagnostics=()=>updateRuntime({diagnostics:{...diagnostics,skips:{...diagnostics.skips},outcomes:{...diagnostics.outcomes}}});
+ const skipSummary=()=>Object.entries(diagnostics.skips).map(([name,count])=>`${reasonLabels[name]} ${count}`).join(' · ');
+ const findCandidate=async(signal,followEnabled)=>{
+  if(document.querySelector('[role="dialog"]'))throw Error('页面已有弹窗，请先处理草稿');
+  const lastScreen=6;
+  for(let screen=0;screen<=lastScreen;screen++){
+   check(signal);if(pauseRequested)return null;
+   const done=await processed(),self=selfHandle();if(!self)throw Error('无法核对当前账号');
+   for(const info of visiblePosts()){
+    const reason=core.interactionSkipReason(info,{self,record:done.posts[info.id],authors:sessionAuthors});
+    recordCandidate(info,reason);if(reason)continue;
+    await publishDiagnostics();
+    if(!followEnabled)return{...info,followState:'unrestricted'};
+    const state=await inspectFollowState(info,signal);return{...info,followState:state};
+   }
+   if(screen<lastScreen){status(`本屏无合格目标，滚动第 ${screen+1}/${lastScreen} 屏 · ${skipSummary()}`);window.scrollBy({top:Math.max(600,innerHeight*.9),behavior:'smooth'});await sleep(1400,signal);}
+  }
+  await publishDiagnostics();return null;
+ };
  const aiReply=async(info)=>api.call({kind:'AI_REPLY',runId:activeRun,post:{id:info.id,text:info.text}});
  // Sending is a single guarded transaction shared with notification replies.
  let replySubmitted=false;
@@ -102,23 +79,36 @@ root.dataset.build='4.0.14';
   const likePost=async(info,signal)=>{check(signal);info=relocatePost(info);if(info.article.querySelectorAll('[data-testid="unlike"]').length===1)return'skipped';const buttons=[...info.article.querySelectorAll('[data-testid="like"]')].filter(b=>!b.disabled);if(buttons.length!==1)throw Error('未找到唯一点赞按钮');clickNative(buttons[0]);const ok=await waitFor(()=>{try{return relocatePost(info).article.querySelectorAll('[data-testid="unlike"]').length===1;}catch{return false;}},100,100,signal);return ok?'verified':'unknown';};
  const followAuthor=async(info,signal)=>{check(signal);if(!await autoFollow())return'skipped_disabled';info=relocatePost(info);const caret=info.article.querySelector('[data-testid="caret"]');if(!caret)throw Error('未找到帖子菜单');clickNative(caret);const menu=await waitFor(()=>document.querySelector('[role="menu"]'),50,100,signal);if(!menu)throw Error('帖子菜单未打开');const own=t=>t.toLowerCase().includes('@'+info.author.toLowerCase()),items=[...menu.querySelectorAll('[role="menuitem"]')],text=x=>(x.textContent||'').trim();if(items.some(x=>own(text(x))&&/^(取消关注|Unfollow)\s/i.test(text(x)))){await closeMenu(caret,menu,signal);await addFollowed(info,'observed');return'skipped';}const matches=items.filter(x=>own(text(x))&&/^(关注|回关|Follow|Follow back)\s/i.test(text(x)));if(matches.length!==1){await closeMenu(caret,menu,signal);throw Error('菜单中未找到唯一关注项');}if(!await autoFollow()){await closeMenu(caret,menu,signal);return'skipped_disabled';}check(signal);clickNative(matches[0]);await waitFor(()=>!document.contains(menu),50,100,signal);await sleep(500,signal);clickNative(caret);const verify=await waitFor(()=>document.querySelector('[role="menu"]'),50,100,signal);if(!verify)return'unknown';const confirmed=[...verify.querySelectorAll('[role="menuitem"]')].some(x=>own(text(x))&&/^(取消关注|Unfollow)\s/i.test(text(x)));await closeMenu(caret,verify,signal);if(confirmed){await addFollowed(info,'interaction');return'verified';}return'unknown';};
  const markSelected=info=>{selected?.classList.remove('x-assistant-selected');selected=info.article;selected.classList.add('x-assistant-selected');};
+ const deferRecord=(info,record)=>saveProcessed(info,{...record,retryAt:Date.now()+Math.max(60000,globalThis.XAssistantTime.ms('interaction'))});
+ const waitAfterAttempt=async(signal,label='等待下一帖')=>{
+  check(signal);await publishDiagnostics();if(pauseRequested)return;
+  const end=await globalThis.XAssistantTime.arm('interaction',activeRun,account);
+  const seconds=Math.max(0,(end-Date.now())/1000);
+  await randomWait(seconds,seconds,signal,label);
+ };
   const runLoop = async (signal, runId) => {
   while (!signal.aborted) {
    if (pauseRequested) return;
    if (document.querySelector('[role="dialog"],[role="alertdialog"]') && !await globalThis.XAssistantPopup.cancel())
-    throw Error('弹窗无法取消，已停止');
-   if (!core.interactionPage(location.href))
-    throw Error('请在 X 主页或帖子搜索结果页启动互动');
+    throw Object.assign(Error('弹窗无法取消，30 秒后重试'),{code:'CLEANUP_FAILED'});
+   const desiredPage=await globalThis.XAssistantEntry?.targetFor?.();
+   if (!core.interactionPage(location.href) || (desiredPage && location.pathname+location.search !== desiredPage)) {
+    await globalThis.XAssistantEntry.enter('interaction',signal);
+    continue;
+   }
 
    const r = await runtime();
    if (!r.active || r.runId !== runId) return;
-   const followEnabled = await autoFollow(),
-    desired = followEnabled ? core.desiredAuthorType(r.cycleIndex) : 'high_exposure';
-   status(followEnabled ? `正在寻找${desired === 'followed' ? '已关注' : '未关注'}作者` : '正在寻找曝光高于 5000 的帖子');
-   const info = await findCandidate(desired, signal, followEnabled);
+   const followEnabled = await autoFollow();
+   status('正在寻找交友帖 · 曝光≥500');
+   const info = await findCandidate(signal, followEnabled);
 
    if (!info) {
     if (pauseRequested) return;
+    if (await globalThis.XAssistantEntry?.nextFriendTopic?.()) {
+     await globalThis.XAssistantEntry.enter('interaction',signal);
+     continue;
+    }
     status('六次滚屏仍无目标，3 秒后刷新当前页面继续寻找');
     await updateRuntime({phase: 'refreshing'});
     await sleep(3000, signal);
@@ -145,7 +135,6 @@ root.dataset.build='4.0.14';
     return;
    }
 
-   sessionAuthors.add(info.author.toLowerCase());
    markSelected(info);
    status('DeepSeek 正在读取帖子并写回复');
    const generated = await aiReply(info);
@@ -154,41 +143,39 @@ root.dataset.build='4.0.14';
    if (generated.postId !== info.id) throw Error('AI 回复目标不匹配');
 
    if (generated.skippedGenerationError) {
-    sessionAuthors.delete(info.author.toLowerCase());
+    recordOutcome(info,'ai_error');
+    await deferRecord(info,{reply:'ai_error',reasonCode:generated.reasonCode,error:generated.reason});
     selected?.classList.remove('x-assistant-selected');
     selected = null;
-    await randomWait(
-     followEnabled ? 60 : 5, followEnabled ? 90 : 10, signal,
-     generated.reason + '，本条未发送，等待下一帖'
-    );
+    await waitAfterAttempt(signal,'AI 生成失败，等待下一帖');
     continue;
    }
    if (generated.action === 'skip') {
-    await saveProcessed(info, {reply: 'skipped_ai'});
+    recordOutcome(info,'ai_skip');
+    await deferRecord(info,{reply:'skipped_ai',reasonCode:generated.skipReason||'model_choice'});
     selected?.classList.remove('x-assistant-selected');
     selected = null;
-    await randomWait(
-     followEnabled ? 10 : 5, followEnabled ? 20 : 10, signal,
-     'AI 主动跳过（并非发送失败），等待下一帖'
-    );
+    await waitAfterAttempt(signal,'AI 主动跳过，等待下一帖');
     continue;
    }
    if (generated.action !== 'send_reply') throw Error('AI 未返回有效发送指令');
 
    const reply = generated.text,
     record = {
-     authorType: desired,
+     authorType: info.followState,
      views: info.views,
      replyText: reply,
      reply: 'in_flight',
-     like: 'pending',
-     follow: followEnabled ? (desired === 'followed' ? 'skipped' : 'pending') : 'skipped_disabled'
+     like: 'disabled',
+     follow: followEnabled ? (info.followState === 'unfollowed' ? 'pending' : info.followState === 'followed' ? 'skipped' : 'skipped_unknown') : 'skipped_disabled'
     };
    await saveProcessed(info, record);
    status(`正在评价 @${info.author}`);
    try {
     record.reply = await replyAndSend(info, reply, signal, async () => {
      record.reply = 'verified';
+     sessionAuthors.add(info.author.toLowerCase());
+     recordOutcome(info,'confirmed');
      await saveProcessed(info, record);
     });
     await saveProcessed(info, record);
@@ -199,44 +186,34 @@ root.dataset.build='4.0.14';
      throw e;
     }
     const uncertain = replySubmitted;
-    record.reply = uncertain ? 'unknown' : 'failed';
+    record.reply = uncertain ? 'unknown' : ['ACCOUNT_CHANGED','CLEANUP_FAILED','RESIDUAL_DRAFT'].includes(e.code) ? 'skipped_issue' : 'failed';
     record.error = e.message;
     record.reasonCode = e.code || 'REPLY_FAILURE';
+    if (e.cause) record.cause = {code:e.cause.code || 'REPLY_FAILURE',message:e.cause.message};
     const popup = !!document.querySelector('[role="dialog"],[role="alertdialog"]');
-    const cleaned = uncertain ? false : popup ? await globalThis.XAssistantPopup.cancel() : await cleanupDialog();
-    if (popup && !uncertain && cleaned) record.reply = 'skipped_popup';
-    await saveProcessed(info, record);
+    const cleaned = popup ? await globalThis.XAssistantPopup.cancel() : true;
+    // Keep the original failure code; an open reply composer is not itself the cause.
+    recordOutcome(info,uncertain?'unknown':'send_failed');
+    if(uncertain)await saveProcessed(info,record);else await deferRecord(info,record);
     selected?.classList.remove('x-assistant-selected');
     selected = null;
     if (e.name === 'AbortError') throw e;
-    if (uncertain) throw Error('回复提交结果未知，互动已停止，避免重复操作');
-    if (!cleaned) throw Error('回复草稿无法安全清理，互动已停止');
-    await randomWait(5, followEnabled ? 20 : 10, signal, '本条未发送，等待下一个帖子');
+    if (!cleaned || e.code === 'CLEANUP_FAILED') throw Object.assign(Error('回复草稿无法安全清理，30 秒后重试'),{code:'CLEANUP_FAILED',cause:e});
+    if (uncertain) {
+     // The per-post ledger already quarantines this target. Return the module
+     // runtime to a non-submitting phase so the next target may proceed safely.
+     await updateRuntime({phase:'waiting'});
+     replySubmitted = false;
+    }
+    await waitAfterAttempt(signal,uncertain?'结果未知，隔离当前帖并等待':'本次未发送，等待下一帖');
     continue;
    }
 
-   await randomWait(followEnabled ? 5 : 3, followEnabled ? 10 : 5, signal, '评价完成，等待点赞');
-   status(`正在点赞 @${info.author}`);
-   try {
-    record.like = await likePost(info, signal);
-   } catch (e) {
-    record.like = e.name === 'AbortError' ? 'unknown' : 'failed';
-    record.error = [record.error, e.message].filter(Boolean).join('；');
-    if (e.name === 'AbortError') {
-     await saveProcessed(info, record);
-     throw e;
-    }
-   }
-   await saveProcessed(info, record);
-
-   if (followEnabled && desired === 'unfollowed' && !await autoFollow()) {
+   record.like = 'disabled';
+   if (followEnabled && info.followState === 'unfollowed' && !await autoFollow()) {
     record.follow = 'skipped_disabled';
     await saveProcessed(info, record);
-   } else if (followEnabled && desired === 'unfollowed') {
-    await randomWait(
-     5, 10, signal,
-     record.like === 'verified' || record.like === 'skipped' ? '点赞已确认，等待关注' : '点赞未确认，等待关注'
-    );
+   } else if (followEnabled && info.followState === 'unfollowed') {
     status(`正在关注 @${info.author}`);
     try {
      record.follow = await followAuthor(info, signal);
@@ -253,7 +230,6 @@ root.dataset.build='4.0.14';
 
    const latest = await runtime();
    await updateRuntime({
-    cycleIndex: followEnabled ? core.nextCycleIndex(latest.cycleIndex) : latest.cycleIndex,
     completed: (latest.completed || 0) + 1,
     phase: 'waiting'
    });
@@ -261,63 +237,60 @@ root.dataset.build='4.0.14';
    selected = null;
    if (pauseRequested) return;
 
-   if (followEnabled && record.follow === 'verified' && globalThis.XAssistantScheduler?.active()) {
-    const end = Date.now() + core.randomSeconds(40, 60) * 1000;
-    await globalThis.XAssistantScheduler.replyDuringCooldown({signal, end});
-    check(signal);
-    if (pauseRequested) return;
-    const remaining = Math.max(0, (end - Date.now()) / 1000);
-    if (remaining) await randomWait(remaining, remaining, signal, '关注后剩余冷却');
-    continue;
-   }
-   await randomWait(
-    followEnabled ? 40 : 5, followEnabled ? 60 : 10, signal,
-    record.like === 'verified' || record.like === 'skipped' ? '本帖处理结束，等待下一帖' : '评价已发送，点赞未成功确认，等待下一帖'
-   );
+   await waitAfterAttempt(signal);
   }
  };
 
  // A single owner per module; the background rejects cross-tab module splitting.
  const start=async(resume=false)=>{
   if(running)return;
-  if(!navigator.locks){status('浏览器不支持执行锁');return;}
-  activeRun=null;running=true;pauseRequested=false;controller=new AbortController();const signal=controller.signal;setButtons(true);
+  if(!navigator.locks){status('浏览器不支持执行锁');throw Error('浏览器不支持执行锁');}
+  activeRun=null;running=true;pauseRequested=false;controller=new AbortController();const signal=controller.signal;
   const existing=await runtime(),lockOptions=resume||existing.active?{ifAvailable:true}:{steal:true};
+  let readyResolve,readyReject,readySettled=false;
+  const ready=new Promise((resolve,reject)=>{readyResolve=resolve;readyReject=reject;});
+  const started=()=>{if(!readySettled){readySettled=true;readyResolve();}};
+  const failed=e=>{if(!readySettled){readySettled=true;readyReject(e);}};
   runPromise=navigator.locks.request('x-assistant-interaction-v2',lockOptions,async lock=>{
-   if(!lock){status('互动正在另一个 X 标签页执行');return;}
-   if(document.querySelector('[role="dialog"]'))throw Error('页面已有弹窗，请先处理草稿');if(!core.interactionPage(location.href))throw Error('请在 X 主页或帖子搜索结果页启动互动');
+   if(!lock)throw Error('互动正在另一个 X 标签页执行');
+   if(document.querySelector('[role="dialog"],[role="alertdialog"]')&&!await globalThis.XAssistantPopup.cancel())throw Object.assign(Error('页面草稿无法安全清理，30 秒后重试'),{code:'CLEANUP_FAILED'});
+   if(!core.interactionPage(location.href))throw Error('请在 X 主页或帖子搜索结果页启动互动');
    if(resume){account=null;await waitFor(()=>selfHandle(),150,100,signal);check(signal);}
    account='/'+selfHandle();
    const s=await api.runtime('interaction','begin',{resume,account});activeRun=s.runId;
+   started();
+   await globalThis.XAssistantTime.ready;
+   const remaining=Math.max(0,((await globalThis.XAssistantTime.pending(account))-Date.now())/1000);
+   if(remaining)await randomWait(remaining,remaining,signal,'恢复互动冷却');
    status(resume?'已恢复互动循环':'互动循环已开始');sessionAuthors=new Set();
+   diagnostics={seen:0,skips:{},outcomes:{},last:null};observedPosts=new Set();observedReasons=new Set();
    await runLoop(signal,activeRun);
   }).catch(async e=>{
+   failed(e);
    if(e.name==='AbortError'||signal.aborted)return;
    status('互动循环停止：'+e.message);
    if(activeRun){try{await updateRuntime({error:e.message});await api.runtime('interaction','stop');}catch{}}
-  }).finally(async()=>{running=false;const latest=await runtime();setButtons(!!latest.active);if(latest.active&&!pauseRequested)status('互动正在执行或等待刷新恢复');});
+  }).finally(async()=>{running=false;const latest=await runtime();if(latest.active&&!pauseRequested)status('互动正在执行或等待刷新恢复');});
+  await ready;
  };
- const stop=async()=>{
+ const stop=async({preserveDrafts=false}={})=>{
   controller?.abort();await api.runtime('interaction','stop');await runPromise;
-  await cleanupDialog();selected?.classList.remove('x-assistant-selected');selected=null;
-  status('互动模块已结束');setButtons(false);
+  if(!preserveDrafts)await cleanupDialog();selected?.classList.remove('x-assistant-selected');selected=null;
+  status('互动模块已结束');
  };
  const pauseAfterCurrent=async()=>{
   pauseRequested=true;status('发帖等待交接：完成当前互动后暂停');await runPromise;
   if(document.querySelector('[role="dialog"]'))throw Error('互动尚有弹窗，未交接发帖');
   if(activeRun){const s=await runtime();if(s.active&&s.runId===activeRun)await updateRuntime({phase:'paused'});}
  };
- const gate=globalThis.createInteractionGate({isRunning:()=>running,stop:pauseAfterCurrent,start:()=>start(true),onPaused:()=>{status('互动已暂停，等待发帖完成');interactionStart.disabled=true;interactionStop.disabled=false;}});
+ const gate=globalThis.createInteractionGate({isRunning:()=>running,stop:pauseAfterCurrent,start:()=>start(true),onPaused:()=>{status('互动已暂停，等待发帖完成');}});
  globalThis.XAssistantInteraction=gate;
  globalThis.XAssistantInteractionDriver={start,pause:pauseAfterCurrent,stop,isRunning:()=>running};
- const safe=fn=>()=>Promise.resolve().then(fn).catch(e=>status(e.message));
- interactionStart.onclick=safe(async()=>{const p=await api.runtime('posting','get');if(['paused_waiting','submitting'].includes(p.phase)&&p.active)throw Error('发帖正在交接或发送，请稍候');if(!await api.review('interaction','/'+selfHandle()))return;gate.cancel();await start(false);});
- interactionStop.onclick=safe(()=>{gate.cancel();return stop();});
  $('[data-a="hide"]').onclick=()=>{hidden=!hidden;root.querySelectorAll(':scope > :not(header)').forEach(x=>x.style.display=hidden?'none':'');const toggle=$('[data-a="hide"]');toggle.textContent=hidden?'+':'—';toggle.setAttribute('aria-expanded',String(!hidden));toggle.setAttribute('aria-label',hidden?'展开控制台':'收起控制台');toggle.title=hidden?'展开控制台':'收起控制台';};
  chrome.storage.onChanged.addListener((changes,area)=>{
   const s=changes[RUNTIME]?.newValue;if(area!=='local'||!s)return;
-  if(!s.active){gate.cancel();controller?.abort();setButtons(false);if(!running)status('互动模块已停止');}
-  else if(!running){setButtons(true);status(s.phase==='paused'?'互动已暂停，等待发帖完成':'互动正在另一个 X 标签页运行');}
+  if(!s.active){gate.cancel();controller?.abort();if(!running)status('互动模块已停止');}
+  else if(!running){status(s.phase==='paused'?'互动已暂停，等待发帖完成':'互动正在另一个 X 标签页运行');}
  });
  runtime().then(r=>{if(r.active&&!globalThis.XAssistantSchedulerCore)start(true);else if(['unknown','submitting'].includes(r.phase))status('上次回复结果未知，请先核对平台记录');}).catch(e=>status(e.message));
  window.addEventListener('x-assistant-invalidate',()=>controller?.abort(),{once:true});

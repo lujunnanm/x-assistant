@@ -12,12 +12,13 @@ export function beginState(s={},other={}, {owner,account,resume=false,now=Date.n
 }
 export function patchState(s,patch,{owner,runId}){
  if(!s?.active||s.owner!==owner||s.runId!==runId)throw Error('任务已停止或已被新任务替代');
- const allowed=['phase','nextAt','error','receipt','rowId','text','submittedAt','cycleIndex','completed','pauseRequested'];
+ const allowed=['phase','nextAt','error','receipt','rowId','text','submittedAt','cycleIndex','completed','pauseRequested','diagnostics'];
  const clean=Object.fromEntries(Object.entries(patch||{}).filter(([k])=>allowed.includes(k)));
  return {...s,...clean,revision:(s.revision||0)+1};
 }
 export function libraryOperation(app,op){
  const rows=validateRows(app.rows||[]),map=new Map(rows.map(r=>[r.id,r]));
+ if(op.action==='replace'){if(app.revision!==op.expectedRevision)throw Error('文案库已变化，请刷新后重试'); const next=validateRows(op.rows);if(!next.length)throw Error('替换文件不能为空');return {...app,libraryBackup:{rows,backedUpAt:new Date().toISOString()},rows:next,revision:(app.revision||0)+1};}
  if(op.action==='merge')for(const r of validateRows(op.rows))map.set(r.id,r);
  else if(op.action==='delete'||op.action==='upsert'){
   const old=map.get(op.id);
@@ -37,4 +38,9 @@ export function reserveRow(state,rows,type){
 export function resolveState(s,{runId,account,reviewed}){
  if(s?.active||!uncertain(s)||s.runId!==runId||s.account?.toLowerCase()!==account?.toLowerCase()||reviewed!==true)throw Error('请先停止任务，并核对同一账号的未知发送记录');
  return {...s,phase:'stopped',error:null,resolution:{reviewedAt:new Date().toISOString(),runId:s.runId,rowId:s.rowId,text:s.text,submittedAt:s.submittedAt,previousPhase:s.phase},revision:(s.revision||0)+1};
+}
+
+export function abandonState(s,{runId,account,reason}){
+ if(s?.active||!uncertain(s)||s.runId!==runId||s.account?.toLowerCase()!==account?.toLowerCase()||reason!=='next_item')throw Error('只能跳过同一账号已停止的未知结果');
+ return {...s,phase:'stopped',error:null,resolution:{disposition:'skipped',skippedAt:new Date().toISOString(),runId:s.runId,rowId:s.rowId,text:s.text,submittedAt:s.submittedAt,previousPhase:s.phase},revision:(s.revision||0)+1};
 }

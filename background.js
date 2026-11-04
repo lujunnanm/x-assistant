@@ -1,14 +1,13 @@
+import './time-policy.js';
 import {verifyCredential,API_KEY_STORAGE} from './deepseek-direct.mjs';
 import {recoverGeneration} from './ai-recovery.mjs';
 import {POST_SCHEDULE_KEY,restoreSchedule,confirmSchedule,scheduledStart} from './posting-schedule.mjs';
 import {generateReply,generatePost,generateNotificationReply} from './ai-client.mjs';
-import builtinLibrary from './builtin-library.mjs';
-import lanvPosts from './lanv-posts-50.mjs';
-import rewrittenPosts from './rewritten-existing-posts-155.mjs';
-import postImageMap from './post-image-map.mjs';
-import friendPostLibrary from './friend-post-library-100.mjs';
+import latestCollectedLibrary from './latest-collected-library-200.mjs';
 import {validateRows} from './core.mjs';
-import {KEYS,beginState,patchState,stopState,resolveState,libraryOperation,reserveRow} from './state.mjs';
+import {KEYS,abandonState,beginState,patchState,stopState,resolveState,libraryOperation,reserveRow} from './state.mjs';
+const timing=globalThis.XAssistantTimePolicy;
+const getTiming=async()=>timing.normalize(await read(timing.KEY));
 let queue=Promise.resolve();
 const serial=fn=>{const result=queue.then(fn);queue=result.catch(()=>{});return result;};
 const read=async key=>(await chrome.storage.local.get(key))[key];
@@ -25,9 +24,22 @@ async function handle(msg,sender){
   catch(e){await write('xAssistantAIStatusV1',{module:'preflight',error:e.message,attempt:1,retrying:false,time:Date.now()});throw e;}
  }
 
+ if(msg.kind==='TIME_GET'&&panel)return getTiming();
+ if(msg.kind==='TIME_SAVE'&&panel){const config=timing.normalize(msg.config);await write(timing.KEY,config);await log('时间控制已保存；已开始的冷却保持原截止时间');return config;}
+ if(msg.kind==='TIME_ARM'&&page){
+  if(msg.name!=='interaction')throw Error('未知冷却模块');
+  const state=await read(KEYS.interaction);
+  patchState(state,{}, {owner:sender.tab.id,runId:msg.runId});
+  if(state.account?.toLowerCase()!==msg.account?.toLowerCase())throw Error('冷却账号不匹配');
+  const end=Date.now()+timing.milliseconds(await getTiming(),'interaction');
+  const db=await read('xAssistantCooldownsV1')||{},account=state.account.toLowerCase();
+  db[account]={...db[account],interaction:end};
+  await chrome.storage.local.set({xAssistantCooldownsV1:db,[KEYS.interaction]:patchState(state,{phase:'waiting',nextAt:end},{owner:sender.tab.id,runId:msg.runId})});
+  return end;
+ }
  if(msg.kind==='GET'&&panel)return getApp();
- if(msg.kind==='LIBRARY_OP'&&panel){const app=libraryOperation(await getApp(),msg.op);await write('app',app);await log('文案库更新：'+msg.op.action);return getApp();}
- if(msg.kind==='OPEN_PANEL'&&page){await chrome.tabs.create({url:chrome.runtime.getURL('panel.html')+'#'+(['library','following','logs'].includes(msg.section)?msg.section:'library')});return null;}
+ if(msg.kind==='LIBRARY_OP'&&panel){if(msg.op?.action==='replace'){for(const key of Object.values(KEYS)){const st=await read(key);if(st?.active||['unknown','submitting','deleting'].includes(st?.phase))throw Error('请先停止全部模块并处理未知发送结果');}}const app=libraryOperation(await getApp(),msg.op);await write('app',app);await log('文案库更新：'+msg.op.action);return getApp();}
+ if(msg.kind==='OPEN_PANEL'&&page){await chrome.tabs.create({url:chrome.runtime.getURL('panel.html')+'#'+(['library','following','logs','time-settings'].includes(msg.section)?msg.section:'library')});return null;}
  if(msg.kind==='FOLLOW_MERGE'&&page){
   if(!Array.isArray(msg.rows)||msg.rows.length>500)throw Error('关注记录无效');
   const db=await read('xAssistantFollowedV1')||{handles:{}};
@@ -43,18 +55,19 @@ async function handle(msg,sender){
   await write('xAssistantProcessedV1',db);return db;
  }
  if(msg.kind!=='RUNTIME'||!page||!KEYS[msg.module])throw Error('未知或未授权命令');
+ if(msg.module==='cleanup')throw Error('清理模块已移除');
  const key=KEYS[msg.module],s=await read(key)||{},owner=sender.tab.id;
  if(msg.action==='get')return s;
  let next;
  if(msg.action==='begin'||msg.action==='prepare'){
-  if(!['cleanup','notifications'].includes(msg.module)&&!(await getApp()).rows.some(r=>r.enabled&&r.type===(msg.module==='posting'?'post':'reply')))throw Error('文案库为空或全部停用');
+  if(msg.module==='posting'&&!(await getApp()).rows.some(r=>r.enabled&&r.type==='post'))throw Error('文案库为空或全部停用');
   const states=await Promise.all(Object.entries(KEYS).filter(([name])=>name!==msg.module).map(async([name,otherKey])=>[name,await read(otherKey)||{}]));
-  if(states.some(([name,state])=>state.active&&(msg.module==='cleanup'||name==='cleanup')))throw Error('清理模块不能与互动或发帖同时运行');
-  const other=states.map(([,state])=>state).find(state=>state.active)||{};
+  const other=states.filter(([name])=>name!=='cleanup').map(([,state])=>state).find(state=>state.active)||{};
   next=beginState(s,other,{owner,account:msg.account,resume:msg.resume});
   if(msg.action==='prepare')return {account:next.account,owner:next.owner};
  }else if(msg.action==='stop')next=stopState(s);
  else if(msg.action==='resolve')next=resolveState(s,msg);
+ else if(msg.action==='abandon')next=abandonState(s,msg);
  else if(msg.action==='patch')next=patchState(s,msg.patch,{owner,runId:msg.runId});
  else if(msg.action==='pick'){
   if(msg.module==='cleanup')throw Error('清理模块不使用文案库');
@@ -64,20 +77,21 @@ async function handle(msg,sender){
  }else throw Error('未知运行操作');
  if(msg.module==='posting'&&(next.account||s.account)){
   const schedules=await read(POST_SCHEDULE_KEY)||{};
-  let schedule=restoreSchedule(schedules,next.account||s.account,s);
+  const time=await getTiming();
+  let schedule=restoreSchedule(schedules,next.account||s.account,s,Date.now(),time);
   if(msg.action==='patch'&&msg.patch?.phase==='confirmed'){
    if(msg.patch.receipt?.kind!=='confirmed')throw Error('发帖成功必须有平台回执');
    // Idempotent receipt replay cannot move the deadline or count as another post.
-   schedule=schedule.confirmedRunId===s.runId&&schedule.confirmedSubmittedAt===s.submittedAt?schedule:{...confirmSchedule(),confirmedRunId:s.runId,confirmedSubmittedAt:s.submittedAt};
+   schedule=schedule.confirmedRunId===s.runId&&schedule.confirmedSubmittedAt===s.submittedAt?schedule:{...confirmSchedule(Date.now(),Math.random,time),confirmedRunId:s.runId,confirmedSubmittedAt:s.submittedAt};
    next.nextAt=schedule.nextPostAt;
   }else if(msg.action==='begin'){
-   next.nextAt=scheduledStart(schedule);schedule.nextPostAt=next.nextAt;
+   next.nextAt=scheduledStart(schedule,Date.now(),time);schedule.nextPostAt=next.nextAt;
   }else if(msg.action==='patch'&&Number.isFinite(next.nextAt))schedule.nextPostAt=next.nextAt;
   next.lastPostedAt=schedule.lastPostedAt;next.nextPostAt=schedule.nextPostAt;
   schedules[(next.account||s.account).toLowerCase()]=schedule;
   await chrome.storage.local.set({[key]:next,[POST_SCHEDULE_KEY]:schedules});
  }else await write(key,next);
- if(['begin','stop','resolve'].includes(msg.action)||msg.patch?.error||msg.patch?.phase==='confirmed')await log(`${msg.module} · ${next.phase}${next.error?' · '+next.error:''}`);
+ if(['begin','stop','resolve','abandon'].includes(msg.action)||msg.patch?.error||msg.patch?.phase==='confirmed')await log(`${msg.module} · ${next.phase}${next.error?' · '+next.error:''}`);
  return next;
 }
 chrome.runtime.onMessage.addListener((msg,sender,respond)=>{
@@ -114,20 +128,15 @@ chrome.runtime.onMessage.addListener((msg,sender,respond)=>{
 chrome.action.onClicked.addListener(()=>chrome.runtime.openOptionsPage());
 async function recover(install=false){
  const app=await getApp();
- if(install&&!app.builtinLibraryV1Loaded){const ids=new Set(app.rows.map(r=>r.id));app.rows.push(...validateRows(builtinLibrary).filter(r=>!ids.has(r.id)));app.builtinLibraryV1Loaded=true;}
- if(install&&!app.replyFollowBackV1Loaded){app.rows=app.rows.map(row=>row.type==='reply'&&!row.text.trimEnd().endsWith('请回关我')?{...row,text:row.text.trimEnd()+'\n请回关我'}:row);app.replyFollowBackV1Loaded=true;}
- if(install&&!app.existingPostsRewriteV1Loaded){const replacements=new Map(validateRows(rewrittenPosts).map(row=>[row.id,row])),ids=new Set(app.rows.map(row=>row.id));app.rows=app.rows.map(row=>replacements.has(row.id)?{...row,text:replacements.get(row.id).text}:row);app.rows.push(...rewrittenPosts.filter(row=>!ids.has(row.id)));app.existingPostsRewriteV1Loaded=true;}
- if(install&&!app.lanvPostsV1Loaded){const ids=new Set(app.rows.map(row=>row.id));app.rows.push(...validateRows(lanvPosts).filter(row=>!ids.has(row.id)));app.lanvPostsV1Loaded=true;}
- if(install&&!app.postTopicsV1Loaded){const tagged=validateRows([...rewrittenPosts,...lanvPosts]),replacements=new Map(tagged.map(row=>[row.id,row])),ids=new Set(app.rows.map(row=>row.id));app.rows=app.rows.map(row=>replacements.has(row.id)?{...row,text:replacements.get(row.id).text}:row);app.rows.push(...tagged.filter(row=>!ids.has(row.id)));app.postTopicsV1Loaded=true;}
- if(install&&!app.postImagesV1Loaded){app.rows=app.rows.map(row=>postImageMap[row.id]?{...row,image:postImageMap[row.id]}:row);app.postImagesV1Loaded=true;}
- if(install&&!app.friendPostsImagesV2Loaded){const replacements=new Map(validateRows(friendPostLibrary).map(row=>[row.id,row])),seen=new Set(app.rows.map(row=>row.id));app.rows=app.rows.map(row=>replacements.get(row.id)||row);app.rows.push(...friendPostLibrary.filter(row=>!seen.has(row.id)));app.friendPostsImagesV2Loaded=true;}
+ if(install&&!app.rows.length&&!app.latestCollectedLibraryV4019Loaded){app.rows=validateRows(latestCollectedLibrary);app.latestCollectedLibraryV4019Loaded=true;}
+ await write(timing.KEY,await getTiming());
  app.schemaVersion=2;app.running=false;app.nextAt=null;
  await write('app',app);
  for(const key of Object.values(KEYS))await write(key,stopState(await read(key)));
- const schedule=await read('xAssistantSchedulerV3');if(schedule)await write('xAssistantSchedulerV3',{...schedule,active:false});
+ const schedule=await read('xAssistantSchedulerV3');if(schedule)await write('xAssistantSchedulerV3',{...schedule,active:false,stopReason:'manual',restartAt:null,stoppedAt:Date.now()});
  const scan=await read('xAssistantFollowingScanV1');if(scan)await write('xAssistantFollowingScanV1',{...scan,active:false,message:'浏览器或扩展已重启，请重新读取'});
  await chrome.alarms.clear('x-assistant-loop');
- await log('v4 状态已恢复；用户文案保留，循环保持停止，未知发送记录保留');
+ await log('v5 状态已恢复；用户文案保留，循环保持停止，未知发送记录保留');
 }
 chrome.runtime.onInstalled.addListener(()=>serial(()=>recover(true)).catch(console.error));
 chrome.runtime.onStartup.addListener(()=>serial(()=>recover()).catch(console.error));

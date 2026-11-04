@@ -12,14 +12,15 @@
   chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes.xAssistantAutoFollowV1)queueMicrotask(sync);});
   master.append(button);sync();
  }
- const section=root.querySelector('[data-module="cleanup"]');
- const start=section?.querySelector('[data-a="clean-start"]'),stop=section?.querySelector('[data-a="clean-stop"]');
- if(start&&stop){
-  start.hidden=true;stop.hidden=true;
-  const button=document.createElement('button');button.type='button';button.className='cleanup-toggle';button.dataset.a='clean-toggle';button.setAttribute('role','switch');
-  const sync=()=>{const active=!stop.disabled;const disabled=start.disabled&&stop.disabled;if(button.disabled!==disabled)button.disabled=disabled;button.setAttribute('aria-checked',String(active));const text=active?'停止':'开始';if(button.textContent!==text)button.textContent=text;button.title=section.querySelector('[data-status="cleanup"]')?.textContent||'';};
-  button.addEventListener('click',()=>{if(button.disabled)return;(!stop.disabled?stop:start).click();sync();});
-  section.querySelector('.row').append(button);
-  new MutationObserver(sync).observe(section,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['disabled']});sync();
+ const icon=root.querySelector('[data-module="interaction"] .module-icon');
+ if(icon){
+  const button=document.createElement('button');button.className=icon.className+' friend-search-toggle';
+  button.innerHTML=icon.innerHTML;button.type='button';button.setAttribute('role','switch');
+  button.setAttribute('aria-label','交友话题搜索');button.dataset.a='friend-search';icon.replaceWith(button);
+  const key='xAssistantFriendSearchV1';
+  const sync=value=>{button.setAttribute('aria-checked',String(value===true));button.title=value?'交友搜索已开启':'交友搜索已关闭';};
+  chrome.storage.local.get(key).then(d=>sync(d[key]));
+  button.addEventListener('click',async()=>{button.disabled=true;try{await chrome.storage.local.set({[key]:button.getAttribute('aria-checked')!=='true'});}finally{button.disabled=false;}});
+  chrome.storage.onChanged.addListener((c,area)=>{if(area==='local'&&c[key])sync(c[key].newValue);});
  }
 })();

@@ -1,45 +1,42 @@
 // Pure scheduling policy. All times are absolute wall-clock milliseconds.
 (() => {
-  const INTERVAL = 10 * 60 * 1000;
-  const GUARD = 30 * 1000;
-  const COOLDOWN_REPLY_BUDGET = 40 * 1000;
+  const time = globalThis.XAssistantTime;
+  const interval = () => time?.ms('notifications') ?? 600000;
+  const guard = () => time?.ms('guard') ?? 30000;
 
   function fresh(now) {
-    return {mode: 'interaction', nextReplyAt: now + INTERVAL, lastTick: now};
+    return {mode: 'interaction', nextReplyAt: now + interval(), lastTick: now};
   }
 
   function tick(state, now) {
-    const nextReplyAt = Number.isFinite(state.nextReplyAt) ? state.nextReplyAt : now + INTERVAL;
+    const nextReplyAt = Number.isFinite(state.nextReplyAt) ? state.nextReplyAt : now + interval();
     return {...state, nextReplyAt, lastTick: now,
-      mode: !state.autoFollow && now >= nextReplyAt ? 'replies' : 'interaction'};
+      mode: now >= nextReplyAt ? 'replies' : 'interaction'};
   }
 
   function replyDeadline(state, post) {
     // Missing posting schedule is not permission to consume the page indefinitely.
-    return Number.isFinite(post.nextAt) ? post.nextAt - GUARD : -Infinity;
+    return Number.isFinite(post.nextAt) ? post.nextAt - guard() : -Infinity;
   }
 
   function choose(state, now, post) {
     if (post.busy || now >= replyDeadline(state, post)) return 'posting';
-    return !state.autoFollow && now >= state.nextReplyAt ? 'notifications' : 'interaction';
+    return now >= state.nextReplyAt ? 'notifications' : 'interaction';
   }
 
   function finishReplies(state, now) {
-    return {...state, mode: 'interaction', nextReplyAt: now + INTERVAL};
+    return {...state, mode: 'interaction', nextReplyAt: now + interval()};
   }
 
   function setFollowMode(state, enabled, now) {
     return {...state, autoFollow: enabled,
-      nextReplyAt: !enabled && state.autoFollow ? now + INTERVAL : state.nextReplyAt};
-  }
-
-  function cooldownDeadline(now, end, post) {
-    if (!Number.isFinite(end)) return -Infinity;
-    return Math.min(now + COOLDOWN_REPLY_BUDGET, end, replyDeadline(null, post));
+      nextReplyAt: state.nextReplyAt};
   }
 
   globalThis.XAssistantSchedulerCore = {
-    INTERVAL, GUARD, COOLDOWN_REPLY_BUDGET, fresh, tick, choose,
-    finishReplies, setFollowMode, replyDeadline, cooldownDeadline
+    get REPLY_WINDOW() { return time?.ms('replyWindow') ?? 300000; },
+    get GUARD() { return guard(); },
+    get AUTO_RESTART_DELAY() { return time?.ms('restart') ?? 30000; },
+    fresh, tick, choose, finishReplies, setFollowMode, replyDeadline
   };
 })();

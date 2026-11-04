@@ -12,6 +12,7 @@
     if(row.at>until)return 'newer_than_window';
     if(!row.text.trim())return 'empty';
     if(confirmed(record,prior))return 'already_replied';
+    if(record?.status==='skipped_issue')return 'skipped_issue';
     if(uncertain(record,prior))return 'unknown_send';
     if(attempted.has(row.id))return 'attempted_this_window';
     return null;

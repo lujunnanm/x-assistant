@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
 const overlay=await readFile(new URL('../overlay.js',import.meta.url),'utf8');
+const awaitView=await readFile(new URL('../view.js',import.meta.url),'utf8');
 const posting=await readFile(new URL('../posting.js',import.meta.url),'utf8');
 test('interaction status belongs to interaction section and never uses generic first status',()=>{
- assert.match(overlay,/<section data-module="interaction">[\s\S]*?data-status="interaction"[\s\S]*?<\/section>/);
+ assert.match(awaitView,/<section data-module="interaction">[\s\S]*?data-status="interaction"[\s\S]*?<\/section>/);
  assert.doesNotMatch(overlay,/\$\('\.status'\)/);
  assert.match(posting,/output\.dataset\.status='posting'/);
 });

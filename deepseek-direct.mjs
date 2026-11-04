@@ -4,10 +4,18 @@ import {createAIError} from './ai-recovery.mjs';
 export const API_KEY_STORAGE = 'xAssistantDeepSeekKeyV1';
 const API_ORIGIN = 'https://api.deepseek.com';
 const MODEL = 'deepseek-flash';
-const LEGACY_FOOTER = /(?:\s*(?:交个朋友呀?|(?:请|尽快)?回关(?:我)?)[\s，,。.!！]*)+$/u;
+const LEGACY_FOOTER = /(?:\s*(?:关注我交个朋友呀?|来交个朋友呀?|交个朋友呀?|方便的话回关一下|求回关|(?:请|尽快)?回关(?:我)?)[\s，,。.!！]*)+$/u;
 
 export function stripLegacyFooter(text) {
   return typeof text === 'string' ? text.replace(LEGACY_FOOTER, '').trim() : text;
+}
+
+export function interactionFallback(text) {
+  const value = typeof text === 'string' ? text : '';
+  if (/[぀-ヿ]/u.test(value)) return 'よかったらつながりましょう。フォローバックもうれしいです。';
+  if (/[가-힯]/u.test(value)) return '서로 소통해요. 괜찮다면 맞팔 부탁드려요.';
+  if (/\p{Script=Han}/u.test(value)) return '来交个朋友，方便的话回关一下。';
+  return "Let’s connect—follow back if you’d like.";
 }
 
 function modeFor(url) {
@@ -19,16 +27,17 @@ function modeFor(url) {
 
 function modeRules(mode) {
   if (mode === 'post') return '';
-  const base = '\n【本次运行模式】text 最多130字符，使用原文主要语言，只回复内容；禁止交友、关注、回关尾句及任何语言翻译，不输出 footer。';
+  const base = '\n【本次运行模式】text 最多130字符，使用原文主要语言，只回复内容，不输出 footer。';
   if (mode === 'notification') {
-    return base + '\n这是别人回复当前账号的一条评论。普通问候、感谢、赞同、简短近况或轻量提问都可自然回应；不要仅因字数少而 skip。回应宜短，中文可5–35字，其他语言一句即可。对“好的”“谢谢”“来啦”可礼貌接住，不虚构关系或经历，不承诺关注，不强行增加问题。明确缺乏可理解含义或需要臆测上下文时才 skip。';
+    return base + '\n这是别人回复当前账号的一条评论。禁止交友、关注、回关尾句。通知回帖同样执行价值门槛：普通问候、感谢、赞同、夸奖、表情、签到和寒暄默认 skip。只有能回答具体问题、补充有用信息或针对实质细节推进讨论时才回复；不要为了礼貌或活跃度硬凑内容。';
   }
-  return base + '\n这是主动互动。针对原帖中的一个具体点回应；缺少可理解内容时 skip，不写万能赞美。';
+  return base + '\n这是主动互动，禁止返回 skip。有具体内容就自然回应；信息少或无法针对内容回复时，改用同语言的简短交友、请求回关或互动邀请，例如“来交个朋友，方便的话回关一下”。';
 }
 
 async function readPrompt(mode, fetcher, resource) {
   try {
-    const response = await fetcher(resource(`bridge/${mode === 'post' ? 'post' : 'reply'}-rules.txt`));
+    const rulesFile = mode === 'post' ? 'post-rules.txt' : mode === 'notification' ? 'reply-rules.txt' : 'interaction-reply-rules.txt';
+    const response = await fetcher(resource(`bridge/${rulesFile}`));
     if (response.ok === false) throw new Error();
     const text = await response.text();
     if (!text.trim()) throw new Error();
@@ -91,7 +100,8 @@ export async function directGenerate(url, options, {
   let value;
   try { value = parseCompletion(await response.json()); }
   catch { throw createAIError('format'); }
-  if (mode !== 'post' && value.action !== 'skip') value.text = stripLegacyFooter(value.text);
+  if (mode === 'reply' && value.action === 'skip') value = {action: 'send_reply', text: interactionFallback(input.text)};
+  if (mode === 'notification' && value.action !== 'skip') value.text = stripLegacyFooter(value.text);
   // Ignore all unexpected fields, including legacy multilingual footer fields.
   const result = {action: value.action, text: value.text};
   return {ok: true, status: 200, json: async () => result};

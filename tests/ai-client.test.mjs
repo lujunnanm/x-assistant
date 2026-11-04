@@ -9,6 +9,12 @@ test('reply weighted bound blocks Chinese overflow before the public sender',()=
  assert.throws(()=>validateReply({action:'send_reply',text:'字'.repeat(141)},'123'),e=>e.code==='content_length');
  assert.doesNotThrow(()=>validateReply({action:'send_reply',text:'a'.repeat(180)},'123'));
 });
-test('unknown commands and footer-only content never produce send instructions',()=>{
- for(const v of [{action:'follow',text:'hello'},{action:'send_reply',text:'交个朋友呀\n请回关我'},{action:'send_reply',text:'尽快回关'}])assert.throws(()=>validateReply(v,'123'));
+test('unknown commands never produce send instructions',()=>{
+ assert.throws(()=>validateReply({action:'follow',text:'hello'},'123'));
+});
+test('replies strip legacy footers without appending promotional text',()=>{
+ for(const body of ['可以从短篇读起。','可以从短篇读起。\n关注我交个朋友呀','可以从短篇读起。\n交个朋友呀\n请回关我'])assert.equal(validateReply({action:'send_reply',text:body},'123').text,'可以从短篇读起。');
+});
+test('interaction validation preserves social and follow-back replies',()=>{
+ for(const body of ['来交个朋友，方便的话回关一下。','Let’s connect—follow back if you’d like.'])assert.equal(validateReply({action:'send_reply',text:body},'123',{allowSocial:true}).text,body);
 });

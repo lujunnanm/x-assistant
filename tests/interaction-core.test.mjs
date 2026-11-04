@@ -7,10 +7,10 @@ const source=await readFile(new URL('../interaction-core.js',import.meta.url),'u
 const context={URL,crypto:{getRandomValues:a=>{a[0]=0;return a;}}};context.globalThis=context;vm.runInNewContext(source,context);
 const core=context.XAssistantCore;
 
-test('interaction ratio is three unfollowed then one followed',()=>{
- assert.deepEqual([...core.pattern],['unfollowed','unfollowed','unfollowed','followed']);
- assert.deepEqual([0,1,2,3,4,5,6,7].map(core.desiredAuthorType),['unfollowed','unfollowed','unfollowed','followed','unfollowed','unfollowed','unfollowed','followed']);
- assert.equal(core.nextCycleIndex(3),0);
+test('interaction no longer exposes a followed/unfollowed rotation policy',()=>{
+ assert.equal(core.pattern,undefined);
+ assert.equal(core.desiredAuthorType,undefined);
+ assert.equal(core.nextCycleIndex,undefined);
 });
 
 test('each random timer uses hundredth-second precision inside its inclusive range',()=>{
@@ -40,11 +40,15 @@ test('automatic following defaults on and honors persisted false',()=>{
  assert.equal(core.autoFollowEnabled(false),false);
 });
 
-test('disabled following accepts only posts strictly above 5000 views',()=>{
- assert.equal(core.highExposure(5001),true);
- assert.equal(core.highExposure(5000),false);
- assert.equal(core.highExposure(4999),false);
- assert.equal(core.highExposure(null),false);
+test('interaction accepts only friendship posts with at least 500 views',()=>{
+ for(const text of ['#蓝v交友 来认识一下','想认识一些新朋友','交个朋友','Looking for new friends!','Let\'s connect #mutuals','友達募集']){
+  assert.equal(core.friendshipRelated(text),true,text);
+  assert.equal(core.friendshipCandidate(text,500),true,text);
+ }
+ for(const text of ['今天和朋友吃饭','科技新闻更新','普通生活记录',''])assert.equal(core.friendshipRelated(text),false,text);
+ assert.equal(core.friendshipCandidate('#蓝V互动',499),false);
+ assert.equal(core.friendshipCandidate('#蓝V互动',null),false);
+ assert.equal(core.friendshipCandidate('普通帖子',50000),false);
 });
 
 test('interaction supports home and top/latest post searches, not people or media tabs',()=>{
@@ -57,3 +61,5 @@ test('fixed remaining cooldown preserves fractional milliseconds without invalid
  assert.throws(()=>core.randomSeconds(-0.001,-0.001));
  assert.throws(()=>core.randomSeconds(NaN,NaN));
 });
+
+test('localized view parser survives deletion of obsolete cleanup module',()=>{for(const [value,count] of [['49 views. View post analytics',49],['1.2K views',1200],['2.5万 次查看',25000],['1,234 views',1234]])assert.equal(core.parseViews(value),count);assert.equal(core.parseViews('no count'),null);});

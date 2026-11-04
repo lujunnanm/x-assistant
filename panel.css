@@ -106,3 +106,11 @@ input::placeholder,textarea::placeholder { color:#4f6376; }
 #message[data-tone=error] { background:#f0dce3; color:#7c2440; }
 #message:not(:empty) { background:#dbe9f5; color:#233c53; }
 @media(max-width:680px) { .workspace { margin:12px; min-height:calc(100vh - 24px); border-radius:22px; } .sidebar { height:auto; } main { padding:20px 14px; } main > section { padding:18px 15px; } .sidebar nav a { color:#fff; } }
+
+/* Timing rows inherit the existing settings material and type hierarchy. */
+.time-row { display:grid;grid-template-columns:minmax(150px,1fr) repeat(2,minmax(90px,120px));gap:16px;align-items:center;padding:12px 0;border-top:1px solid var(--line); }
+.time-row > label { margin:0; }
+.time-value { font-variant-numeric:tabular-nums; }
+.time-value input { margin-top:4px;min-height:44px; }
+#time-form .bar { margin-top:20px; }
+@media(max-width:680px){.time-row{grid-template-columns:minmax(95px,1fr) repeat(2,minmax(62px,90px));gap:8px;}.time-value input{padding:10px 8px;}}

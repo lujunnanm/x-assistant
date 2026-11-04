@@ -14,10 +14,8 @@ test('posting always wins and overdue reply check resumes afterwards',()=>{
 test('legacy rest state migrates without preserving hourly rest',()=>{
  const s=C.tick({mode:'replies',restUntil:99999999},1000);assert.equal(s.mode,'interaction');assert.equal(s.nextReplyAt,601000);
 });
-test('auto-follow disables periodic notification scheduling; disabling follow resets ten-minute clock',()=>{
- let s=C.setFollowMode(C.fresh(0),true,0);
- s=C.tick(s,900000);assert.equal(s.mode,'interaction');assert.equal(C.choose(s,900000,post),'interaction');
- s=C.setFollowMode(s,false,900000);assert.equal(s.nextReplyAt,1500000);
- assert.equal(C.choose(s,1499999,post),'interaction');assert.equal(C.choose(s,1500000,post),'notifications');
- assert.equal(C.choose({...s,autoFollow:true},1500000,{busy:true,nextAt:0}),'posting');
+test('automatic follow never changes notification schedule',()=>{
+ const s=C.fresh(0);for(const enabled of [true,false]){
+  const next=C.setFollowMode(s,enabled,900000);assert.equal(next.nextReplyAt,600000);assert.equal(C.choose(next,900000,post),'notifications');
+ }
 });

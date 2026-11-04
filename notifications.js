@@ -27,6 +27,15 @@
       T.check(signal,deadline);
       if(D.account()!==owner)throw new T.TaskError('ACCOUNT_CHANGED','账号变化，停止通知回复');
     };
+    const guardPage=()=>{
+      guard();
+      if(location.pathname==='/notifications/mentions')return;
+      // A navigation is a batch boundary, not permission to reply on another page.
+      // Do not hand off to a driver that might dismiss a newly opened user draft.
+      if(D.dialogs().length)throw Object.assign(new T.TaskError('CLEANUP_FAILED','页面已切换且存在弹窗，请先处理'),{preserveDrafts:true});
+      if([...document.querySelectorAll('[contenteditable="true"]')].some(e=>globalThis.XAssistantCore.editorText(e).trim()))throw Object.assign(new T.TaskError('RESIDUAL_DRAFT','页面已切换且存在未发送草稿，请先处理'),{preserveDrafts:true});
+      throw new T.TaskError('PAGE_CHANGED','通知页面已变化');
+    };
     const record=async(row,status,extra={})=>{
       db.records[row.id]={...db.records[row.id],status,at:Date.now(),commentAt:row.at,author:row.author,...extra};
       await save();
@@ -53,18 +62,15 @@
     };
     const finish=async(reason,complete=false)=>{
       db.lastChecked=Date.now();db.nextAt=0;db.cycles++;
-      db.lastScan={startedAt,finishedAt:Date.now(),reason,stats};
+      db.lastScan={startedAt,finishedAt:Date.now(),reason,stats,page:location.pathname+(location.search||'')};
       await save();resumable=true;
       report(reason==='yield'?'本轮时间已到，未完成评论留待下轮':reason==='exhausted'?'暂无可回复评论，本轮结束':reason==='scan_limit'?'本轮扫描已达上限，稍后继续':'本轮暂歇：'+reason);
       return {complete,rest:!complete&&reason!=='yield',reason,stats};
     };
-    const checkUncertain=()=>{
-      if(Object.values(db.records).some(r=>P.uncertain(r)))throw new T.TaskError('SEND_UNKNOWN','存在未知发送记录，请先核对；不会自动重复发送');
-    };
-    checkUncertain();guard();await save();
-    let token=null;
+    guard();await save();
+    let token=null,currentTarget=null;
     try {
-      if(!options.cooldownSlot)token=await globalThis.XAssistantInteraction.pause();
+      token=await globalThis.XAssistantInteraction.pause();
       guard();
       await patch({phase:'notification_scan',nextAt:Number.isFinite(deadline)?deadline:null});
       show('检查最新评论 · 最近24小时 · 已成功回复自动略过');
@@ -77,11 +83,10 @@
       await T.waitFor(()=>D.rows(owner).length||!document.querySelector('[role="progressbar"]'),{signal,deadline,timeout:5000});
       let stable=0,last='';
       for(let screen=0;screen<100;screen++){
-        guard();
-        if(location.pathname!=='/notifications/mentions')throw new T.TaskError('NAVIGATION','通知页面已变化');
+        guardPage();
         // Refresh nodes after every attempt. X can replace articles after opening a composer.
         for(;;){
-          guard();
+          guardPage();
           const rows=P.newestFirst(D.rows(owner));
           let target=null;
           for(const row of rows){
@@ -90,22 +95,21 @@
               observed.add(row.id);stats.seen++;
               if(reason)stats.excluded[reason]=(stats.excluded[reason]||0)+1;
             }
-            if(reason==='unknown_send')throw new T.TaskError('SEND_UNKNOWN','目标评论存在未知发送记录，请先核对');
             if(!reason){target=row;break;}
           }
           if(!target)break;
-          stats.eligible++;
+          stats.eligible++;currentTarget=target;
           report('AI 正在生成回复 @'+target.author);
           // Nothing is marked attempted until generation produces a definite outcome.
           const generated=await T.bounded(()=>api.call({kind:'AI_NOTIFICATION_REPLY',runId,post:{id:target.id,text:target.text}}),{signal,deadline});
-          guard();
+          guardPage();
           if(generated.postId!==target.id)throw new T.TaskError('TARGET_MISMATCH','AI 回复目标不匹配');
           if(!P.recent(target.at)){attempted.add(target.id);continue;}
           if(generated.skippedGenerationError){
             stats.aiFailed++;attempted.add(target.id);
             await record(target,'ai_error',{reasonCode:generated.reasonCode||'AI_GENERATION',reason:generated.reason||'AI 生成失败'});
             report('AI 生成失败，未发送；下轮可重试');
-            if(/连接|HTTP|超时/.test(generated.reason||'')){await T.sleep(1000,signal,deadline);return await finish('AI 服务暂不可用');}
+
           } else if(generated.action==='skip'){
             stats.aiSkipped++;attempted.add(target.id);
             await record(target,'skipped',{reasonCode:'AI_CHOICE',reason:generated.skipReason||'AI 主动选择不回复'});
@@ -124,20 +128,27 @@
               report('回复已确认');
             } catch(error){
               if(error.confirmed||P.confirmed(db.records[target.id]))throw error; // confirmed ledger retained even if runtime persistence failed
-              if(error.submitted){await record(target,'unknown',{reasonCode:'SEND_UNKNOWN',reason:error.message});throw error;}
-              if(error.name==='AbortError'||error.code==='YIELD'){
+              if(error.submitted){
+                stats.failed++;attempted.add(target.id);
+                await record(target,'unknown',{reasonCode:'SEND_UNKNOWN',reason:error.message});
+                await patch({phase:'notification_scan'});
+                report('发送结果不明，跳过当前评论');
+              } else if(error.name==='AbortError'||error.code==='YIELD'){
                 // Reservation may exist, but engine proves no click occurred.
                 if(db.records[target.id]?.status==='in_flight')await record(target,'failed',{reasonCode:'INTERRUPTED_BEFORE_SEND',reason:'未提交，留待下轮'});
                 throw error;
+              } else {
+                stats.failed++;attempted.add(target.id);
+                const terminal=['ACCOUNT_CHANGED','CLEANUP_FAILED','RESIDUAL_DRAFT'].includes(error.code);
+                await record(target,terminal?'skipped_issue':'failed',{reasonCode:error.code||'REPLY_FAILURE',reason:error.message});
+                if(['ACCOUNT_CHANGED','CLEANUP_FAILED'].includes(error.code)){currentTarget=null;throw error;}
+                await patch({phase:'notification_scan'});
+                report('未发送：'+error.message+'；跳过当前评论');
               }
-              stats.failed++;attempted.add(target.id);
-              await record(target,'failed',{reasonCode:error.code||'REPLY_FAILURE',reason:error.message});
-              if(['ACCOUNT_CHANGED','CLEANUP_FAILED'].includes(error.code))throw error;
-              await patch({phase:'notification_scan'});
-              report('未发送：'+error.message+'；下轮可重试');
             }
           }
-          const cooldownMs=generated.skippedGenerationError||generated.action==='skip'?1000:globalThis.XAssistantCore.randomSeconds(3,5)*1000;
+          currentTarget=null;
+          const cooldownMs=generated.skippedGenerationError||generated.action==='skip'||attempted.has(target.id)&&!P.confirmed(db.records[target.id])?0:globalThis.XAssistantTime.ms('replyGap');
           const end=Date.now()+cooldownMs;
           while(Date.now()<end){
             report('下一条 · '+((end-Date.now())/1000).toFixed(1)+' 秒');
@@ -153,8 +164,16 @@
       }
       return await finish('scan_limit');
     } catch(error){
+      if(currentTarget&&['ACCOUNT_CHANGED','CLEANUP_FAILED','RESIDUAL_DRAFT'].includes(error.code)&&!P.confirmed(db.records[currentTarget.id])){
+        stats.failed++;attempted.add(currentTarget.id);
+        await record(currentTarget,'skipped_issue',{reasonCode:error.code,reason:error.message});
+        currentTarget=null;
+      }
+      // No send is in flight here: the engine propagates unknown sends separately.
+      // Let the scheduler keep posting/interaction alive and retry unsent rows later.
+      if(error.code==='PAGE_CHANGED'&&!error.submitted&&!error.confirmed)return await finish('page_changed');
       if(error.code==='YIELD'||error.name==='YieldError')return await finish('yield');
-      db.lastScan={startedAt,finishedAt:Date.now(),reason:error.name==='AbortError'?'stopped':'error',error:error.message,stats};
+      db.lastScan={startedAt,finishedAt:Date.now(),reason:error.name==='AbortError'?'stopped':'error',error:error.message,stats,page:location.pathname+(location.search||'')};
       await save();throw error;
     } finally {
       // Scheduling owns the work destination; leave the page in a known safe state.

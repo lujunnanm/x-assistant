@@ -3,12 +3,10 @@
  const root=document.getElementById('x-assistant-float');if(!root||root.dataset.postingReady)return;root.dataset.postingReady='1';
  const core=globalThis.XAssistantCore,api=globalThis.XAssistantRuntime;let runId=null,runPromise=Promise.resolve();
  const patch=patch=>api.runtime('posting','patch',{runId,patch});
- const start=root.querySelector('[data-a="post-start"]'),stop=root.querySelector('[data-a="post-stop"]'),KEY='xAssistantPostingV1';
- const section=start.closest('section'),output=document.createElement('div');output.className='status';output.dataset.status='posting';output.setAttribute('role','status');output.textContent='发帖已停止 · 随机间隔 30–50 分钟';section.append(output);
- const scheduleLabel=document.createElement('div');scheduleLabel.className='post-schedule';section.append(scheduleLabel);
- const scheduleText=s=>{const fmt=t=>Number.isFinite(t)?new Date(t).toLocaleString([], {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';scheduleLabel.textContent=`上次 ${fmt(s?.lastPostedAt)} · 下次 ${fmt(s?.nextPostAt)}`;};
+ const KEY='xAssistantPostingV1';
+ const section=root.querySelector('[data-module="posting"]'),output=document.createElement('div');output.className='status';output.dataset.status='posting';output.setAttribute('role','status');output.textContent='发帖已停止 · 等待启动';section.append(output);
  let control=null,timer=null,mirrorTimer=null,preSubmitTask=null;const progress=value=>section.style.setProperty('--progress',Math.max(0,Math.min(1,value)));const show=t=>(output.textContent=t,!/下次发帖/.test(t)&&progress(0));
- 
+
  const read=async()=>{const data=await chrome.storage.local.get([KEY,'xAssistantPostSchedulesV1']),state=data[KEY];const account=document.querySelector('[data-testid="AppTabBar_Profile_Link"]')?.getAttribute('href')||state?.account;const saved=data.xAssistantPostSchedulesV1?.[account?.toLowerCase()];return saved?{...state,lastPostedAt:saved.lastPostedAt,nextPostAt:saved.nextPostAt}:state;};
  const check=signal=>{if(signal.aborted)throw new DOMException('发帖已停止','AbortError');};
  const sleep=(ms,signal)=>new Promise((resolve,reject)=>{check(signal);const id=setTimeout(done,ms);function done(){signal.removeEventListener('abort',abort);resolve();}function abort(){clearTimeout(id);reject(new DOMException('发帖已停止','AbortError'));}signal.addEventListener('abort',abort,{once:true});});
@@ -41,7 +39,7 @@
   let dialog=null,editor=null,submitted=false,ownsDraft=false,ownsImage=false,receipt=null;
   let reserved=false,releasePreSubmit=null;
   check(signal);
-  
+
   try{
    // Always use the global composer, scoped to its new dialog, on every X route.
    await patch({phase:'opening',rowId:row.id,text:row.text,receipt:null,submittedAt:null});
@@ -121,14 +119,13 @@
  }
 
  const renderRemote=state=>{
-  scheduleText(state);
-  if(!state?.active){start.disabled=false;stop.disabled=true;if(!control)show(['unknown','submitting'].includes(state?.phase)?'上次发送结果未知，请核对平台记录':state?.error||'发帖已停止');return;}
-  start.disabled=true;stop.disabled=false;
+  if(!state?.active){if(!control)show(['unknown','submitting'].includes(state?.phase)?'上次发送结果未知，请核对平台记录':state?.error||'发帖已停止');return;}
+
   if(!control){const remaining=Math.max(0,(state.nextAt||Date.now())-Date.now());output.textContent=`下次发帖 ${(remaining/1000).toFixed(1)} 秒 · 运行于另一个 X 标签页`;}
  };
  async function stopLoop(){
   control?.abort();await preSubmitTask;await api.runtime('posting','stop');await runPromise;
-  clearInterval(timer);progress(0);show('发帖已结束；已提交的请求无法撤回');start.disabled=false;stop.disabled=true;
+  clearInterval(timer);progress(0);show('发帖已结束；已提交的请求无法撤回');
  }
  async function countdown(deadline,signal,label,displayAt=deadline){
   const duration=Math.max(1,deadline-Date.now());
@@ -137,7 +134,7 @@
  async function launch(resume=false){
   if(control)return;
   if(!navigator.locks){show('浏览器不支持跨标签页执行锁');return;}
-  runId=null;const own=new AbortController();control=own;const signal=own.signal;start.disabled=true;stop.disabled=false;
+  runId=null;const own=new AbortController();control=own;const signal=own.signal;
   const existing=await read(),lockOptions=resume||existing?.active?{ifAvailable:true}:{steal:true};
   runPromise=navigator.locks.request('x-assistant-original-post-loop',lockOptions,async lock=>{
    if(!lock)throw Error('发帖正在另一个 X 标签页运行');
@@ -148,7 +145,7 @@
     // An overdue slot runs once now; confirmation schedules a fresh future slot.
     if(deadline<Date.now())deadline=Date.now();
     await patch({phase:'waiting',nextAt:deadline});
-    await countdown(Math.max(Date.now(),deadline-30000),signal,'下次发帖',deadline);
+    await countdown(Math.max(Date.now(),deadline-globalThis.XAssistantTime.ms('guard')),signal,'下次发帖',deadline);
     await navigator.locks.request('x-assistant-page-actions',{signal},async()=>{
     let token=null;
     try{
@@ -158,19 +155,19 @@
      await patch({phase:'paused_waiting',nextAt:deadline});
      await countdown(deadline,signal,'互动已暂停 · 下次发帖');
      if(await waitAccount(signal)!==account)throw Error('账号发生变化，已停止');
-     if(document.querySelector('[role="dialog"],[role="alertdialog"]')){if(!await globalThis.XAssistantPopup.cancel())throw Error('弹窗取消失败');show('已取消弹窗，跳过本次发帖');deadline=Date.now()+Math.round(core.randomSeconds(1800,3000)*1000);return;}
+     if(document.querySelector('[role="dialog"],[role="alertdialog"]')){if(!await globalThis.XAssistantPopup.cancel())throw Error('弹窗取消失败');show('已取消弹窗，跳过本次发帖');deadline=Date.now()+globalThis.XAssistantTime.ms('posting');return;}
      const row=await api.runtime('posting','pick',{runId});check(signal);
      show('DeepSeek 正在生成发帖文案');await patch({phase:'generating',rowId:row.id});
      const generated=await api.call({kind:'AI_POST',runId,rowId:row.id});check(signal);
      if(generated.rowId!==row.id)throw Error('AI 发帖文案与参考条目不匹配');
-     if(generated.action==='skip'){show('AI 跳过此主题，等待下轮；未发送');deadline=Date.now()+Math.round(core.randomSeconds(1800,3000)*1000);return;}
+     if(generated.action==='skip'){show('AI 跳过此主题，等待下轮；未发送');deadline=Date.now()+globalThis.XAssistantTime.ms('posting');return;}
      if(generated.action!=='send_post')throw Error('AI 未返回有效发帖指令');
      if(await waitAccount(signal)!==account)throw Error('生成期间账号发生变化，未发送');
      try{await publish({...row,text:generated.text},signal,runId);}catch(e){
       const latest=await read();
       if(signal.aborted||['submitting','unknown','rejected','confirmed'].includes(latest.phase)||!document.querySelector('[role="dialog"],[role="alertdialog"]'))throw e;
       if(!await globalThis.XAssistantPopup.cancel())throw e;
-      show('已取消弹窗，跳过本次发帖');deadline=Date.now()+Math.round(core.randomSeconds(1800,3000)*1000);return;
+      show('已取消弹窗，跳过本次发帖');deadline=Date.now()+globalThis.XAssistantTime.ms('posting');return;
      }check(signal);
      deadline=(await read()).nextAt;
     }finally{if(token)await globalThis.XAssistantInteraction?.resume(token);if(globalThis.XAssistantScheduler)await globalThis.XAssistantScheduler.afterPost();}
@@ -183,8 +180,7 @@
    }
   }).finally(async()=>{if(control===own)control=null;renderRemote(await read());});
  }
- start.disabled=false;stop.disabled=true;
- start.onclick=async()=>{try{const account=document.querySelector('[data-testid="AppTabBar_Profile_Link"]')?.getAttribute('href');if(await api.review('posting',account))await launch(false);}catch(e){show(e.message);}};stop.onclick=()=>stopLoop().catch(e=>show(e.message));
+
  globalThis.XAssistantPostingDriver={start:launch,stop:stopLoop,isRunning:()=>!!control};
  read().then(s=>{if(s?.active&&!globalThis.XAssistantSchedulerCore)launch(true);else renderRemote(s);}).catch(e=>show(e.message));
  chrome.storage.onChanged.addListener((changes,area)=>{if(area!=='local'||!changes[KEY])return;const s=changes[KEY].newValue;if(!s?.active)control?.abort();renderRemote(s);});

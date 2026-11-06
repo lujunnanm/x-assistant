@@ -12,5 +12,5 @@ test('all 50 existing images remain packaged for saved user references',async()=
 
 test('posting driver loads, attaches, verifies and cleans up owned images',async()=>{
  const source=await readFile(new URL('../posting.js',import.meta.url),'utf8');
- for(const needle of ['chrome.runtime.getURL(path)','new File([blob]','data.items.add(file)','等待图片上传','row.image&&!hasAttachment(dialog)','removeOwnedImage(dialog)'])assert.ok(source.includes(needle),needle);
+ for(const needle of ['chrome.runtime.getURL(path)','new File([blob]','data.items.add(file)','等待图片上传','row.image&&!hasAttachment(dialog)','removeOwnedImage(dialog,cleanable)'])assert.ok(source.includes(needle),needle);
 });

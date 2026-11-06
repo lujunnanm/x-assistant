@@ -1,19 +1,19 @@
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFile} from 'node:fs/promises';
 const core=await readFile(new URL('../scheduler-core.js',import.meta.url),'utf8'),source=await readFile(new URL('../scheduler.js',import.meta.url),'utf8');
 const wait=()=>new Promise(r=>setTimeout(r,25));
-async function fixture({workMs=0,scanComplete=false,scanRest=false,postError=false,postErrorOnce=false,unknownOnStop=false,entryError=false,pageLockBlocked=false,scanHandler=null,restartDelay=30000,initialScheduler}={}){
+async function fixture({workMs=0,scanComplete=false,scanRest=false,postError=false,postErrorOnce=false,unknownOnStop=false,entryError=false,pageLockBlocked=false,scanHandler=null,restartDelay=30000,initialScheduler,cleanupFails=0}={}){
  const events=new Map();const window={addEventListener(name,handler,options){events.set(name,{handler,once:options?.once});}};
  const emit=(name,detail)=>{const event=events.get(name);if(!event)return;if(event.once)events.delete(name);event.handler({detail});};
- let now=0,working=false,scans=0,postRunning=false,postStarts=0,unknownInjected=false;let storageWrites=0,pageLockRequests=0;const storage={xAssistantAutoFollowV1:false,...(initialScheduler?{xAssistantSchedulerV3:structuredClone(initialScheduler)}:{})},calls=[],runtimes={posting:{active:!!initialScheduler?.active},interaction:{active:!!initialScheduler?.active},notifications:{active:!!initialScheduler?.active}};
+ let now=0,working=false,scans=0,postRunning=false,postStarts=0,unknownInjected=false,cleanupCalls=0;let storageWrites=0,pageLockRequests=0;const storage={xAssistantAutoFollowV1:false,...(initialScheduler?{xAssistantSchedulerV3:structuredClone(initialScheduler)}:{})},calls=[],runtimes={posting:{active:!!initialScheduler?.active},interaction:{active:!!initialScheduler?.active},notifications:{active:!!initialScheduler?.active,runId:'notifications'}};
  const node=()=>({dataset:{},textContent:'',setAttribute(){},after(){},replaceWith(){}});
  const button=node(),summary=node(),header=node(),sections={};for(const n of ['posting','interaction','notifications'])sections[n]={querySelector:()=>node()};
  const root={querySelector:s=>s==='header'?header:sections[/data-module="(.*?)"/.exec(s)?.[1]]||node(),insertBefore(){}};
  const document={getElementById:()=>root,createElement:()=>({...node(),querySelector:s=>s==='button'?button:summary})};
  const sleep=(ms,signal)=>new Promise((resolve,reject)=>{const timer=setTimeout(()=>{signal?.removeEventListener('abort',abort);resolve();},2);function abort(){clearTimeout(timer);reject(new DOMException('stop','AbortError'));}if(signal?.aborted)abort();else signal?.addEventListener('abort',abort,{once:true});});
  const runtime=async(n,action,extra={})=>{const s=runtimes[n];if(action==='get'||action==='prepare')return {...s};if(action==='abandon'){Object.assign(s,{phase:'stopped',error:null,resolution:{disposition:'skipped'}});calls.push('abandon:'+n);return{...s};}if(action==='begin'){Object.assign(s,{active:true,runId:n,account:'/me',phase:'waiting',error:null});return {...s};}if(action==='patch'){Object.assign(s,extra.patch);return {...s};}if(action==='stop'){s.active=false;calls.push('stop:'+n);return {...s};}};
- const ctx=vm.createContext({document,Date:{now:()=>now},AbortController,DOMException,Promise,setTimeout,clearTimeout,window,navigator:{locks:{request:async(name,options,fn)=>{if(name==='x-assistant-page-actions'){pageLockRequests++;if(pageLockBlocked)return new Promise((resolve,reject)=>{const abort=()=>reject(new DOMException('lock cancelled','AbortError'));if(options.signal?.aborted)abort();else options.signal?.addEventListener('abort',abort,{once:true});});}return fn({name});}}},chrome:{storage:{local:{get:async k=>({[k]:storage[k]}),set:async o=>{storageWrites++;Object.assign(storage,o);}}}},XAssistantRuntime:{call:async()=>({ready:true}),runtime,review:async()=>true,sleep,check:s=>{if(s.aborted)throw new DOMException('stop','AbortError');}},XAssistantEntry:{captureInteractionTarget:()=>'/home',setInteractionTarget:()=>{},account:()=>'/me',enter:async()=>{if(entryError)throw Error('navigation failed');}},XAssistantInteractionDriver:{isRunning:()=>working,start:async()=>{working=true;runtimes.interaction.active=true;calls.push('interaction:start');},pause:async()=>{working=false;calls.push('interaction:pause');},stop:async()=>{working=false;runtimes.interaction.active=false;if(unknownOnStop&&!unknownInjected){unknownInjected=true;Object.assign(runtimes.interaction,{phase:'unknown',account:'/me',runId:'interaction'});}}},XAssistantPostingDriver:{start:async()=>{postRunning=true;postStarts++;const broken=postError||postErrorOnce&&postStarts===1;Object.assign(runtimes.posting,{active:true,runId:'posting',account:'/me',phase:'waiting',nextAt:9999999,error:broken?'generation failed':null});},stop:async()=>{postRunning=false;runtimes.posting.active=false;}},XAssistantNotifications:{scan:async options=>{scans++;calls.push('scan');if(options.cooldownSlot){assert.equal(options.yieldAt,now+40000);}else{assert.equal(working,false);assert.equal(options.yieldAt,Math.min(now+300000,runtimes.posting.nextAt-30000));}return scanHandler?await scanHandler(options):{complete:scanComplete,rest:scanRest};}}});
+ const ctx=vm.createContext({document,location:{href:'https://x.com/home'},Date:{now:()=>now},AbortController,DOMException,Promise,setTimeout,clearTimeout,window,navigator:{locks:{request:async(name,options,fn)=>{if(name==='x-assistant-page-actions'){pageLockRequests++;if(pageLockBlocked)return new Promise((resolve,reject)=>{const abort=()=>reject(new DOMException('lock cancelled','AbortError'));if(options.signal?.aborted)abort();else options.signal?.addEventListener('abort',abort,{once:true});});}return fn({name});}}},chrome:{storage:{local:{get:async k=>({[k]:storage[k]}),set:async o=>{storageWrites++;Object.assign(storage,o);}}}},XAssistantRuntime:{call:async()=>({ready:true}),runtime,review:async()=>true,sleep,check:s=>{if(s.aborted)throw new DOMException('stop','AbortError');}},XAssistantCore:{interactionPage:()=>true},XAssistantPopup:{cancel:async()=>++cleanupCalls>cleanupFails},XAssistantEntry:{captureInteractionTarget:()=>'/home',setInteractionTarget:()=>{},account:()=>'/me',enter:async()=>{if(entryError)throw Error('navigation failed');}},XAssistantInteractionDriver:{isRunning:()=>working,start:async()=>{working=true;runtimes.interaction.active=true;calls.push('interaction:start');},pause:async()=>{working=false;calls.push('interaction:pause');},stop:async()=>{working=false;runtimes.interaction.active=false;if(unknownOnStop&&!unknownInjected){unknownInjected=true;Object.assign(runtimes.interaction,{phase:'unknown',account:'/me',runId:'interaction'});}}},XAssistantPostingDriver:{start:async()=>{postRunning=true;postStarts++;const broken=postError||postErrorOnce&&postStarts===1;Object.assign(runtimes.posting,{active:true,runId:'posting',account:'/me',phase:'waiting',nextAt:9999999,error:broken?'generation failed':null});},stop:async()=>{postRunning=false;runtimes.posting.active=false;}},XAssistantProfileReplies:{scan:async options=>{scans++;calls.push('scan');assert.equal(working,false);assert.equal(options.yieldAt,Infinity);assert.ok(Number.isFinite(options.until));return scanHandler?await scanHandler(options):{complete:scanComplete,rest:scanRest};}}});
  vm.runInContext(core,ctx);Object.defineProperty(ctx.XAssistantSchedulerCore,'AUTO_RESTART_DELAY',{value:restartDelay});const orig=ctx.XAssistantSchedulerCore.fresh;ctx.XAssistantSchedulerCore.fresh=t=>({...orig(t),workMs});vm.runInContext(source,ctx);await wait();
- return {ctx,storage,calls,runtimes,button,summary,emit,advance:async t=>{now=t;await wait();},start:async()=>{await ctx.XAssistantScheduler.start();await wait();},stop:()=>ctx.XAssistantScheduler.stop(),working:()=>working,scans:()=>scans,postRunning:()=>postRunning,postStarts:()=>postStarts,writes:()=>storageWrites,pageLockRequests:()=>pageLockRequests};
+ return {ctx,storage,calls,runtimes,button,summary,emit,advance:async t=>{now=t;await wait();},start:async()=>{await ctx.XAssistantScheduler.start();await wait();},stop:()=>ctx.XAssistantScheduler.stop(),working:()=>working,scans:()=>scans,postRunning:()=>postRunning,postStarts:()=>postStarts,writes:()=>storageWrites,pageLockRequests:()=>pageLockRequests,cleanupCalls:()=>cleanupCalls};
 }
 test('continuous interaction yields to ten-minute reply checks then resumes',async()=>{
  const f=await fixture({scanComplete:true});try{
@@ -50,9 +50,9 @@ test('manual stop never arms the automatic restart timer',async()=>{
  const f=await fixture({restartDelay:10});await f.start();await f.stop();const starts=f.postStarts();await wait();assert.equal(f.postStarts(),starts);assert.equal(f.ctx.XAssistantScheduler.active(),false);
 });
 
-test('notification scan-limit rest keeps posting alive without repeated scanning',async()=>{
+test('notification scan limit yields instead of immediately rescanning',async()=>{
  const f=await fixture({workMs:3599000,scanRest:true});
- try{await f.start();await f.advance(600000);assert.equal(f.scans(),1);assert.equal(f.postRunning(),true);assert.equal(f.storage.xAssistantSchedulerV3.active,true);await f.advance(900000);assert.equal(f.scans(),1);assert.equal(f.postRunning(),true);}finally{await f.stop();}
+ try{await f.start();await f.advance(600000);await wait();assert.equal(f.scans(),1);assert.equal(f.postRunning(),true);assert.equal(f.storage.xAssistantSchedulerV3.active,true);}finally{await f.stop();}
 });
 
 test('manual stop aborts interaction before awaiting a blocked handoff',async()=>{
@@ -142,7 +142,7 @@ test('failure after a cancelled refresh persists the error instead of a resumabl
  } finally {await f.stop();}
 });
 
-test('pagehide snapshot is normalized to stopped by the next content script', async () => {
+test('plugin-armed refresh resumes once while an ordinary reload remains stopped', async () => {
  const f = await fixture();
  await f.start();
  await f.ctx.XAssistantScheduler.beforeRefresh();
@@ -153,6 +153,28 @@ test('pagehide snapshot is normalized to stopped by the next content script', as
  assert.equal(f.storage.xAssistantSchedulerV3.stopReason, null);
  assert.equal(f.calls.includes('stop:notifications'), false);
  const next=await fixture({initialScheduler:f.storage.xAssistantSchedulerV3});await wait();
- assert.equal(next.ctx.XAssistantScheduler.active(),false);assert.equal(next.storage.xAssistantSchedulerV3.active,false);
- assert.equal(next.storage.xAssistantSchedulerV3.stopReason,'manual');assert.equal(next.postStarts(),0);
+ assert.equal(next.ctx.XAssistantScheduler.active(),true);assert.equal(next.storage.xAssistantSchedulerV3.active,true);
+ assert.equal(next.storage.xAssistantSchedulerV3.refreshResumeUntil,null);assert.equal(next.postStarts(),1);
+ await next.stop();
+});
+
+test('owned notification cleanup retries without stopping the whole session',async()=>{
+ let attempts=0;
+ const f=await fixture({cleanupFails:1,scanHandler:async()=>{if(attempts++===0)throw Object.assign(Error('回复草稿或弹窗无法安全取消'),{code:'CLEANUP_FAILED',submitted:false});return{complete:true};}});
+ try{
+  await f.start();await f.advance(600000);await wait();await wait();
+  assert.equal(f.ctx.XAssistantScheduler.active(),true);assert.equal(f.storage.xAssistantSchedulerV3.error,null);
+  assert.ok(f.cleanupCalls()>=2);assert.equal(f.postRunning(),true);
+ }finally{await f.stop();}
+});
+
+test('reply batch keeps rescanning until a confirmation sweep finds no eligible comments',async()=>{
+ let pass=0;
+ const f=await fixture({scanHandler:async()=>++pass===1
+  ?{complete:true,stats:{eligible:2,confirmed:2}}
+  :{complete:true,stats:{eligible:0,confirmed:0}}});
+ try{
+  await f.start();await f.advance(600000);await wait();await wait();await wait();
+  assert.equal(f.scans(),2);assert.equal(f.storage.xAssistantSchedulerV3.active,true);
+ }finally{await f.stop();}
 });

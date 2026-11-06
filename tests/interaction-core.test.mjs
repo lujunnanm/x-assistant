@@ -4,6 +4,7 @@ import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
 
 const source=await readFile(new URL('../interaction-core.js',import.meta.url),'utf8');
+const entrySource=await readFile(new URL('../module-entry.js',import.meta.url),'utf8');
 const context={URL,crypto:{getRandomValues:a=>{a[0]=0;return a;}}};context.globalThis=context;vm.runInNewContext(source,context);
 const core=context.XAssistantCore;
 
@@ -40,15 +41,38 @@ test('automatic following defaults on and honors persisted false',()=>{
  assert.equal(core.autoFollowEnabled(false),false);
 });
 
-test('interaction accepts only friendship posts with at least 500 views',()=>{
- for(const text of ['#蓝v交友 来认识一下','想认识一些新朋友','交个朋友','Looking for new friends!','Let\'s connect #mutuals','友達募集']){
+test('interaction accepts friendship posts regardless of exposure count',()=>{
+ for(const text of ['#蓝v交友 来认识一下','想认识一些新朋友','交个朋友','#蓝V交友圈','#蓝V诚信互关','#蓝V关注必回','#蓝V涨粉互助','#蓝V新人报到','#蓝V日常互动','#蓝V抱团','#蓝V冲千粉','#蓝友互关','#互关大队','#回关大队','#真诚互粉','#浇友串门','出摊啦，蓝V来认识一下','Looking for new friends!','Let\'s connect #mutuals','Let\'s be mutuals','Active mutuals wanted','Following everyone back','New mutuals welcome','Support each other','Join this follow chain','Let\'s grow together','#ifollowback','#followback100','#followbackguaranteed','#mutualfollow','#creatorcommunity','#engagementtrain','#bluecheckmutuals','#f4f','友達募集','お友達募集','相互フォロー希望','相互垢募集','フォロバ必ず','フォロバ希望','フォロー返し','友達募集中','交流したい','絡み募集中','ブルーバッジ仲間','認証垢相互','Xで繋がりたい','仲良くなりたい','맞팔']){
   assert.equal(core.friendshipRelated(text),true,text);
-  assert.equal(core.friendshipCandidate(text,500),true,text);
+  for(const views of [null,0,499,500])assert.equal(core.friendshipCandidate(text,views),true,text);
  }
- for(const text of ['今天和朋友吃饭','科技新闻更新','普通生活记录',''])assert.equal(core.friendshipRelated(text),false,text);
- assert.equal(core.friendshipCandidate('#蓝V互动',499),false);
- assert.equal(core.friendshipCandidate('#蓝V互动',null),false);
+ for(const text of ['今天和朋友吃饭','科技新闻更新','普通生活记录','蓝V认证价格介绍','饭馆出摊卖早餐','朋友来家里串门','Follow the instructions below','The train follows the river','Networking event starts at eight','友達と夕食を食べました','説明に従ってください',''])assert.equal(core.friendshipRelated(text),false,text);
  assert.equal(core.friendshipCandidate('普通帖子',50000),false);
+});
+
+test('topic words in ordinary post body are eligible without hashtag syntax',()=>{
+ for(const text of ['今天想认真交友，认识些聊得来的朋友','最近互关的人越来越多了','欢迎回关，之后常来往','蓝 V，交 友，活人在线','想找一些 new creators 一起交流','フォロワー募集しています']){
+  assert.equal(core.friendshipRelated(text),true,text);
+  assert.equal(core.interactionSkipReason({author:'other',text},{self:'self'}),null,text);
+ }
+});
+
+test('every rotating search query combines Chinese, English and Japanese terms',()=>{
+ const literal=entrySource.match(/const topics=\[(.*?)\n \];/s)?.[1]||'';
+ const topics=[...literal.matchAll(/'([^']+)'/g)].map(match=>match[1]);
+ assert.equal(topics.length,16);
+ for(const query of topics){
+  assert.equal((query.match(/ OR /g)||[]).length,2,query);
+  assert.match(query,/\p{Script=Han}/u,query);
+  assert.match(query,/[A-Za-z]/,query);
+  assert.match(query,/(?:友達|相互|フォ|繋|交流|募集|絡|仲良|ブルー)/u,query);
+ }
+});
+
+test('deduplicated Japanese follow tags from the supplied screenshot are all recognized',()=>{
+ const tags=['ブルバ100','フォロバ100','フォロバ確実','フォロー返します','相互フォロー','相互フォロワー募集','フォロバ相互','フォローしてね','フォロバ100絶対','いいねした人全員フォロー','フォロー返し','いいねした人全員フォローする','フォローした人全員フォローする','ファボした人全員フォローする','ファボください','いいねください','フォロバ100パーセント','フォローしてくれたアイドル全員フォローする','いいねしてきたアイドルをフォローする','フォロバ','フォロバ100パー','フォロバ100変なアカウント以外'];
+ assert.equal(new Set(tags).size,22);
+ for(const tag of tags)assert.equal(core.friendshipRelated('#'+tag),true,tag);
 });
 
 test('interaction supports home and top/latest post searches, not people or media tabs',()=>{

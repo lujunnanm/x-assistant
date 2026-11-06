@@ -76,3 +76,15 @@ test('a draft sheet mounted after a short no-dialog gap is discarded before retu
  const ctx=vm.createContext({Date:Clock,document:{querySelectorAll:()=>done?[]:!closing?[composer]:now<200?[]:[prompt]},setTimeout:(f,ms)=>setTimeout(()=>{now+=ms;f();},0)});
  vm.runInContext(source,ctx);assert.equal(await ctx.XAssistantPopup.cancel(),true);assert.deepEqual(clicked,['关闭','放弃']);
 });
+
+test('close and discard each wait another 500ms after their button appears',async()=>{
+ let now=0,phase=0;const clicks=[];
+ const close={textContent:'关闭',getAttribute:()=>null,click:()=>{clicks.push(now);phase=1;}};
+ const discard={textContent:'放弃',getAttribute:()=>null,click:()=>{clicks.push(now);phase=2;}};
+ const composer={textContent:'回复',querySelector:s=>s.includes('app-bar-close')?close:null,querySelectorAll:()=>[close]};
+ const prompt={textContent:'保存帖子？',querySelector:()=>null,querySelectorAll:()=>[discard]};
+ class Clock extends Date {static now(){return now;}}
+ const c=vm.createContext({Date:Clock,document:{querySelectorAll:()=>phase===0?[composer]:phase===1?[prompt]:[]},setTimeout:(fn,ms)=>{now+=ms;queueMicrotask(fn);}});
+ vm.runInContext(source,c);assert.equal(await c.XAssistantPopup.cancel(),true);
+ assert.ok(clicks[0]>=500);assert.ok(clicks[1]-clicks[0]>=500);assert.equal(clicks.length,2);
+});

@@ -7,6 +7,7 @@
   const KEY = 'xAssistantSchedulerV3';
   const FOLLOW_KEY = 'xAssistantAutoFollowV1';
   const modules = ['posting', 'interaction', 'notifications'];
+  const REFRESH_RESUME_MS = 15000;
 
   const master = document.createElement('div');
   master.className = 'master-control';
@@ -38,7 +39,11 @@
   function render(s = current) {
     const active = !!s && !s.signal.aborted;
     const repliesSection=root.querySelector('[data-module="notifications"]');
-    if(repliesSection?.dataset){const next=active&&s.state&&!s.reply?.started?String(s.state.nextReplyAt):'';if(repliesSection.dataset.nextAt!==next)repliesSection.dataset.nextAt=next;}
+    if(repliesSection?.dataset){
+      const deadline=s?.reply&&Number.isFinite(s.reply.deadline)?s.reply.deadline:s?.state?.nextReplyAt;
+      const next=active&&Number.isFinite(deadline)?String(deadline):'';
+      if(repliesSection.dataset.nextAt!==next)repliesSection.dataset.nextAt=next;
+    }
     if (unavailableReason) button.disabled = true;
     setText(button, active ? '停止协同' : '启动协同');
     button.setAttribute('aria-label',active?'停止协同':'启动协同');
@@ -63,15 +68,21 @@
   }
 
   function check(s) { api.check(s.signal); }
-  // A fresh content script never resumes work by itself. Reloading the page,
-  // browser or extension is a safe stop boundary; only the visible master
-  // button may create a new session.
+  // Only a refresh explicitly armed by this running content script may resume.
+  // Ordinary page/browser/extension reloads remain safe stop boundaries.
   async function normalizeBootState(saved) {
+    const refreshResume = !!saved?.active && Number.isFinite(saved?.refreshResumeUntil) &&
+      saved.refreshResumeUntil >= Date.now() && saved.stopReason == null && !saved.error;
+    if (refreshResume) {
+      const resumed = {...saved, refreshResumeUntil: null};
+      await chrome.storage.local.set({[KEY]: resumed});
+      return {state: resumed, resume: true};
+    }
     if (!saved?.active && saved?.stopReason !== 'error' && !Number.isFinite(saved?.restartAt)) return saved;
     await Promise.allSettled(modules.map(name => api.runtime(name, 'stop')));
-    const stopped = {...saved, active: false, stopReason: 'manual', restartAt: null, stoppedAt: Date.now()};
+    const stopped = {...saved, active: false, error: null, stopReason: 'manual', restartAt: null, refreshResumeUntil: null, stoppedAt: Date.now()};
     await chrome.storage.local.set({[KEY]: stopped});
-    return stopped;
+    return {state: stopped, resume: false};
   }
   function serial(s, fn) {
     const task = s.queue.then(() => { check(s); return fn(); });
@@ -131,27 +142,42 @@
 
         slot.deadline = Math.min(slot.deadline, C.replyDeadline(s.state, post));
         if (s.postingBusy || Date.now() >= slot.deadline) return;
-        slot.started = true;
+        slot.started = true; slot.batchUntil = Date.now();
         render(s);
-        await globalThis.XAssistantEntry.enter('notifications', slot.signal);
-        api.check(slot.signal);
         const old = await api.runtime('notifications', 'get');
         const run = await api.runtime('notifications', 'begin', {account: s.state.account, resume: !!old.active});
-        const result = await globalThis.XAssistantNotifications.scan({
-          account: s.state.account, runId: run.runId, signal: slot.signal,
-          yieldAt: slot.deadline,
-          show: text => setText(root.querySelector('[data-status="notifications"]'), text)
-        });
-        check(s); api.check(slot.signal);
-        await api.runtime('notifications', 'patch', {runId: run.runId, patch: {phase: 'waiting', nextAt: null}});
-        // Posting preemption is not a completed ten-minute batch.
-        if (result?.complete || result?.rest || Date.now() >= slot.deadline) {
-          s.state = C.finishReplies(s.state, Date.now());
-          await save(s, true);
+        for (;;) {
+          check(s); api.check(slot.signal);
+          await globalThis.XAssistantEntry.enter('notifications', slot.signal);
+          const result = await globalThis.XAssistantProfileReplies.scan({
+            account: s.state.account, runId: run.runId, signal: slot.signal,
+            // Once a reply batch starts it owns the page until a confirmation
+            // sweep finds no eligible unreplied comments from this snapshot.
+            yieldAt: Infinity, until: slot.batchUntil,
+            show: text => setText(root.querySelector('[data-status="notifications"]'), text)
+          });
+          check(s); api.check(slot.signal);
+          await api.runtime('notifications', 'patch', {runId: run.runId, patch: {phase: 'waiting', nextAt: null}});
+          if (result?.reason==='profile_complete' || result?.rest || result?.reason === 'liked_boundary' || (result?.complete && !(result.stats?.eligible > 0))) break;
+          lastMessage = '回帖复查中，确认所有未回复评论'; render(s);
+          await api.sleep(1000, slot.signal);
         }
+        s.state = C.finishReplies(s.state, Date.now());
+        await save(s, true);
       });
     } catch (error) {
-      if (error.name !== 'AbortError') { fail(s, error); throw error; }
+      if (error.name !== 'AbortError') {
+        // A reply composer owned by this task can finish rendering after the
+        // first bounded cleanup attempt. Keep the session alive, block every
+        // other page action, and retry only the safe dismiss routine.
+        if (error.code === 'CLEANUP_FAILED' && !error.preserveDrafts && !error.submitted) {
+          s.cleanupBlocked = true;
+          lastMessage = '回复窗口清理中，其他任务已暂停';
+          render(s);
+        } else {
+          fail(s, error); throw error;
+        }
+      }
     } finally {
       slot.unlink();
       if (s.reply === slot) s.reply = null;
@@ -178,6 +204,16 @@
   async function tick(s) {
     check(s);
     if (globalThis.XAssistantEntry.account() !== s.state.account) throw Error('账号变化，已停止协同');
+    if (s.cleanupBlocked) {
+      lastMessage = '正在安全恢复回复窗口'; render(s);
+      const clean = await globalThis.XAssistantPopup.cancel();
+      check(s);
+      if (!clean) { await save(s); return; }
+      if (!globalThis.XAssistantCore.interactionPage(location.href)) await globalThis.XAssistantEntry.enter('interaction', s.signal);
+      const notifications = await api.runtime('notifications', 'get');
+      if (notifications?.active && notifications.runId) await api.runtime('notifications', 'patch', {runId: notifications.runId, patch: {phase: 'waiting', nextAt: null}});
+      s.cleanupBlocked = false; lastMessage = '回复窗口已恢复';
+    }
     const [post, interaction, setting] = await Promise.all([
       api.runtime('posting', 'get'), api.runtime('interaction', 'get'), chrome.storage.local.get(FOLLOW_KEY)
     ]);
@@ -239,7 +275,7 @@
   async function start(resume = false) {
     if (current || unavailableReason) return;
     const controller = new AbortController();
-    const s = {controller, signal: controller.signal, state: null, owns: false, refreshing: false,
+    const s = {controller, signal: controller.signal, state: null, owns: false, refreshing: false, cleanupBlocked: false,
       postingBusy: false, reply: null, pausing: null, queue: Promise.resolve(), saveQueue: Promise.resolve(),
       savedAt: -Infinity, savedSignature: '', reason: null, shutdown: null};
     current = s; button.disabled = true; lastMessage = '正在启动'; render(s);
@@ -296,9 +332,9 @@
     afterPost: async () => { if (current) { current.postingBusy = false; render(current); } },
     beforeRefresh: async () => {
       const s = current; if (!s) return;
-      // Preparing a reload is not evidence that the page will leave: the user
-      // can cancel beforeunload. Only pagehide may preserve a running session.
-      check(s); await save(s, true);
+      // This short-lived marker distinguishes our own refresh from a user,
+      // browser or extension reload. It is consumed by the next content script.
+      check(s); s.state.refreshResumeUntil=Date.now()+REFRESH_RESUME_MS; await save(s, true);
     }
   };
   button.onclick = () => (current ? stop() : start()).catch(error => { lastMessage = error.message; render(); });
@@ -323,7 +359,9 @@
     render();
   }, {once: true});
   chrome.storage.local.get(KEY).then(async data => {
-    const saved = await normalizeBootState(data[KEY]);
+    const normalized = await normalizeBootState(data[KEY]);
+    const saved = normalized?.state ?? normalized;
     lastMessage = saved?.error || '已停止'; render();
+    if (normalized?.resume) await start(true);
   }).catch(error => { lastMessage = error.message; render(); });
 })();

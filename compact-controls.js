@@ -18,9 +18,12 @@
   button.innerHTML=icon.innerHTML;button.type='button';button.setAttribute('role','switch');
   button.setAttribute('aria-label','交友话题搜索');button.dataset.a='friend-search';icon.replaceWith(button);
   const key='xAssistantFriendSearchV1';
-  const sync=value=>{button.setAttribute('aria-checked',String(value===true));button.title=value?'交友搜索已开启':'交友搜索已关闭';};
-  chrome.storage.local.get(key).then(d=>sync(d[key]));
-  button.addEventListener('click',async()=>{button.disabled=true;try{await chrome.storage.local.set({[key]:button.getAttribute('aria-checked')!=='true'});}finally{button.disabled=false;}});
+  const sync=value=>{const enabled=value!==false;button.setAttribute('aria-checked',String(enabled));button.title=enabled?'搜索已开启：从话题搜索互动':'搜索已关闭：从首页时间线互动';button.setAttribute('aria-label',button.title);};
+  const api=globalThis.XAssistantRuntime,local=api.storage||chrome.storage.local;
+  const failed=e=>{button.title=e.message||'设置不可用';button.disabled=true;};
+  button.disabled=true;
+  Promise.resolve().then(()=>local.get(key)).then(d=>{sync(d[key]);button.disabled=false;}).catch(failed);
+  button.addEventListener('click',async()=>{button.disabled=true;try{await local.set({[key]:button.getAttribute('aria-checked')!=='true'});button.disabled=false;}catch(e){failed(e);}});
   chrome.storage.onChanged.addListener((c,area)=>{if(area==='local'&&c[key])sync(c[key].newValue);});
  }
 })();

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "神圣计划",
-  "version": "5.0.1",
-  "description": "X 自动化运营控制台：发帖、互动、回帖协同调度，DeepSeek 同语种生成，发送回执核验。",
+  "version": "7.3.2",
+  "description": "神圣计划：独立管理发帖、互动、回帖与认证关注者回关。",
   "permissions": [
     "storage",
     "alarms",
@@ -36,27 +36,45 @@
         "time-policy.js",
         "time-client.js",
         "interaction-core.js",
+        "interaction-fallback-library.js",
         "runtime-client.js",
-        "coordination.js",
         "posting-receipt.js",
-        "scheduler-core.js",
         "popup-guard.js",
         "task-utils.js",
+        "action-client.js",
         "x-dom.js",
+        "deletion-dom.js",
         "reply-engine.js",
         "notification-policy.js",
+        "service-policy.js",
+        "workspace-policy.js",
         "view.js",
         "overlay.js",
         "notifications.js",
+        "profile-replies.js",
         "posting.js",
+        "notifications-driver.js",
         "module-entry.js",
-        "scheduler.js",
+        "followback.js",
+        "workspace.js",
+        "console.js",
         "compact-controls.js"
       ],
       "css": [
-        "overlay.css"
+        "overlay.css",
+        "fault-indicator.css"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://x.com/*"
+      ],
+      "js": [
+        "thread-ownership.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
     }
   ],
   "short_name": "神圣计划",

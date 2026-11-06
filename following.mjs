@@ -2,7 +2,9 @@
 export async function collectFollowing(own,scanId){
  const SCAN='xAssistantFollowingScanV1',DB='xAssistantFollowedV1';let stable=0,seen=new Set(),previous='';
  const saveStatus=async(message,active=false)=>{const s=(await chrome.storage.local.get(SCAN))[SCAN];if(s?.scanId===scanId)await chrome.storage.local.set({[SCAN]:{...s,active,message,observed:seen.size}});};
- try{for(let page=0;page<180;page++){
+ try{await globalThis.XAssistantWorkspace?.ready;
+ if(!globalThis.XAssistantRuntime)throw Error('插件页面尚未就绪，请刷新后重新读取');
+ for(let page=0;page<180;page++){
   const scan=(await chrome.storage.local.get(SCAN))[SCAN];if(!scan?.active||scan.scanId!==scanId)return;
   if(location.pathname.toLowerCase()!==(own+'/following').toLowerCase())throw Error('页面已离开本人关注列表');
   const cells=[...document.querySelectorAll('[data-testid="UserCell"]')],found=[];
@@ -12,7 +14,7 @@ export async function collectFollowing(own,scanId){
    const author=handles[0],key=author.toLowerCase();seen.add(key);found.push({key,handle:'@'+author,displayName:cell.innerText.split('\n')[0],lastSeenAt:new Date().toISOString(),source:'following-list',owner:own.slice(1)});
   }
   // Merge into latest state so unrelated records are not replaced.
-  const result=await chrome.runtime.sendMessage({kind:'FOLLOW_MERGE',rows:found});if(!result?.ok)throw Error(result?.error||'保存关注列表失败');
+  await globalThis.XAssistantRuntime.call({kind:'FOLLOW_MERGE',rows:found});
   await saveStatus(`正在读取：本次识别 ${seen.size} 个，第 ${page+1} 屏`,true);
   const fingerprint=[...seen].join(',')+'|'+document.documentElement.scrollHeight+'|'+Math.round(scrollY);
   stable=fingerprint===previous?stable+1:0;previous=fingerprint;

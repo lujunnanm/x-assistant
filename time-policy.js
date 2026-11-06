@@ -5,11 +5,11 @@
     posting: {label: '发帖冷却', min: 1200, max: 1800, floor: 1, ceiling: 86400, range: true},
     interaction: {label: '互动冷却', min: 20, max: 30, floor: 1, ceiling: 3600, range: true},
     replyGap: {label: '逐条回帖冷却', min: 10, max: 20, floor: 1, ceiling: 3600, range: true},
-    notifications: {label: '通知检查间隔', min: 600, max: 600, floor: 10, ceiling: 86400},
-    replyWindow: {label: '单次通知处理时长', min: 300, max: 300, floor: 5, ceiling: 3600},
+    notifications: {label: '回帖检查间隔', min: 600, max: 600, floor: 10, ceiling: 86400},
+    replyWindow: {label: '旧通知处理窗口', min: 300, max: 300, floor: 5, ceiling: 3600, legacy: true},
     startup: {label: '首次启动等待', min: 30, max: 30, floor: 1, ceiling: 3600},
-    restart: {label: '异常重试等待', min: 30, max: 30, floor: 5, ceiling: 3600},
-    guard: {label: '发帖提前交接', min: 30, max: 30, floor: 1, ceiling: 300}
+    restart: {label: '旧协同异常重试', min: 30, max: 30, floor: 5, ceiling: 3600, legacy: true},
+    guard: {label: '旧发帖提前交接', min: 30, max: 30, floor: 1, ceiling: 300, legacy: true}
   };
   function normalize(value = {}) {
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error('时间配置无效');

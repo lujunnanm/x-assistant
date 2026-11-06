@@ -4,10 +4,11 @@ const reply=readFileSync(new URL('../bridge/reply-rules.txt',import.meta.url),'u
 test('both rule sets specify actual substring restrictions before generation',()=>{
  for(const rules of [reply,post]){for(const word of ['我','本人','亲测','不是','不等于','与其','你以为'])assert.ok(rules.includes(word));assert.ok(rules.includes('按字面子串'));assert.ok(rules.includes('输出前自检'));assert.ok(rules.includes('不能把含禁用词的草稿返回'));}
 });
-test('interaction reply rules never skip and use a social fallback for low-information posts',()=>{
- assert.ok(interactionReply.includes('主动互动不跳过任何已入选帖子'));
- assert.ok(interactionReply.includes('来交个朋友，方便的话回关一下'));
- assert.ok(!interactionReply.includes('{"action":"skip"'));
+test('interaction reply rules remove the content-value threshold',()=>{
+ assert.ok(interactionReply.includes('主动互动不设内容价值门槛'));
+ assert.ok(interactionReply.includes('普通问候、感谢、赞同、表情、寒暄和简单日常都要回复'));
+ assert.ok(interactionReply.includes('选择 skip'));
+ assert.ok(!interactionReply.includes('【价值门槛：不满足就 skip】'));
 });
 test('all provided reply examples pass real client validation',()=>{
  const examples=[...reply.matchAll(/输出：(\{[^\n]+\})/g)].map(m=>JSON.parse(m[1]));assert.ok(examples.length>=7);
@@ -18,9 +19,11 @@ test('post example passes actual body and weighted-length checks',()=>{
  assert.doesNotThrow(()=>validatePost(example,{id:'test',text:'#蓝v交友'}));
 });
 
-test('notification reply rules require concrete value and skip social filler',()=>{
- for(const phrase of ['价值门槛','单纯问候、感谢、赞同、夸奖','通知回帖同样执行此门槛','不能增加信息、帮助或具体讨论价值'])assert.ok(reply.includes(phrase));
+test('notification reply rules allow social filler without a content-value threshold',()=>{
+ assert.ok(reply.includes('【回复范围：不设内容价值门槛】'));
+ assert.ok(reply.includes('普通问候、感谢、赞同、夸奖、加油、表情、签到、寒暄、交友口号、简单日常都允许 send_reply'));
+ assert.ok(!reply.includes('【价值门槛：不满足就 skip】'));
  for(const input of ['谢谢分享','来啦','Thanks for sharing!','ありがとうございます。']){
-  const escaped=input.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');assert.match(reply,new RegExp(`输入：${escaped}\\n输出：\\{"action":"skip","text":""\\}`));
+  const escaped=input.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');assert.match(reply,new RegExp(`输入：${escaped}\\n输出：\\{"action":"send_reply","text":"[^"]+"\\}`));
  }
 });

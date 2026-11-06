@@ -22,7 +22,7 @@
 #x-assistant-float section>b{font-size:18px;font-weight:650;white-space:nowrap;padding-right:10px;border-right:1px solid #475260}
 #x-assistant-float .module-icon{display:grid;place-items:center;width:42px;height:42px;border-radius:13px;color:var(--accent);background:linear-gradient(145deg,#101823,#253343);border:1px solid #344354;box-shadow:inset 0 2px 5px #0009}
 #x-assistant-float .module-icon svg{width:25px;height:25px}
-#x-assistant-float .friend-search-toggle{padding:0}
+#x-assistant-float .friend-search-toggle{padding:0;color:var(--muted)}
 #x-assistant-float .friend-search-toggle[aria-checked=true]{color:#ff893e;border-color:#ff893e88;box-shadow:0 2px 0 #ff893e}
 #x-assistant-float .countdown{display:flex;gap:4px;align-items:baseline;justify-content:center;font-variant-numeric:tabular-nums}
 #x-assistant-float .countdown span{color:var(--accent);font-size:22px;font-weight:650}
@@ -30,6 +30,8 @@
 #x-assistant-float .state-lamp::before{content:'';width:8px;height:8px;border-radius:50%;background:#8291a4}
 #x-assistant-float .state-lamp[data-state=on]::before{background:#f2853c}
 #x-assistant-float .state-lamp[data-state=wait]::before{background:#e3b371}
+#x-assistant-float .state-lamp[data-state=warn]{color:#f5bd93}
+#x-assistant-float .state-lamp[data-state=warn]::before{background:#f2853c}
 #x-assistant-float .status{display:none!important}
 #x-assistant-float .follow-option{display:none}
 #x-assistant-float [role=alert]{font-size:14px;border-radius:10px;margin-bottom:12px}
@@ -37,3 +39,36 @@
 @media(max-width:470px){#x-assistant-float{right:12px;bottom:12px;padding:18px 14px}}
 @media(prefers-reduced-motion:reduce){#x-assistant-float *{transition:none!important;animation:none!important}}
 #x-assistant-float .master-control .follow-button{grid-column:2;grid-row:1}
+/* Independent workspaces keep the incumbent material, dimensions and controls. */
+#x-assistant-float[data-collapsed=true]>:not(header){display:none!important}
+#x-assistant-float[data-collapsed=true] header{margin-bottom:0}
+#x-assistant-float .workspace-notice{font-size:14px;line-height:1.5;color:#f5bd93;margin-top:12px;overflow-wrap:anywhere}
+#x-assistant-float .workspace-links{display:flex;gap:16px;align-items:center;margin-top:14px}
+#x-assistant-float .workspace-links button{padding:4px 0;border:0;background:none;color:var(--muted);font-size:14px}
+#x-assistant-float .workspace-links button:hover{color:var(--accent)}
+
+
+/* Same material, one global console with independent module switches. */
+#x-assistant-float[data-workspace=managed] section{grid-template-columns:42px 50px minmax(42px,1fr) 70px 42px;gap:8px}
+#x-assistant-float .module-title{font-size:18px;font-weight:650;white-space:nowrap;padding:0 10px 0 0;border:0;border-right:1px solid #475260;background:none;text-align:left}
+#x-assistant-float .module-title:disabled{opacity:1;color:var(--ink)}
+#x-assistant-float .module-switch{padding:3px 6px;border:1px solid #475567;border-radius:8px;background:#141e2b;font-size:14px;min-height:30px}
+#x-assistant-float .module-switch[aria-checked=true]{border-color:#a26236;color:var(--accent);background:#32271f}
+#x-assistant-float .module-fixed{font-size:14px;color:var(--muted);text-align:center}
+#x-assistant-float .service-summary{font-size:14px;color:var(--muted);margin-bottom:10px}
+#x-assistant-float .module-issue{grid-column:1/-1;display:flex;align-items:center;gap:10px;font-size:14px;color:#f5bd93}
+#x-assistant-float .module-issue[data-tone=note]{color:var(--muted)}
+#x-assistant-float .module-issue span{flex:1;overflow-wrap:anywhere}
+#x-assistant-float .repair-worker{flex-shrink:0;font-size:14px;padding:4px 8px;border:1px solid #74513b;border-radius:6px;background:#30251e}
+#x-assistant-float .workspace-links span{margin-left:auto;font-size:14px;color:var(--muted)}
+#x-assistant-float[data-interaction-selected=false] .follow-button{display:none!important}
+
+/* Compact console: remove routine copy while preserving actionable warnings. */
+#x-assistant-float .service-summary,
+#x-assistant-float .workspace-links,
+#x-assistant-float .module-issue[data-tone="note"]{display:none!important}
+#x-assistant-float .master-control>button[aria-checked="true"]{color:var(--accent)}
+#x-assistant-float [data-module="posting"][data-selected="true"] .module-title,
+#x-assistant-float [data-module="interaction"][data-selected="true"] .module-title,
+#x-assistant-float [data-module="notifications"][data-selected="true"] .module-title,
+#x-assistant-float [data-module="followback"][data-selected="true"] .module-title{color:var(--accent)}

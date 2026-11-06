@@ -2,7 +2,9 @@
 (() => {
   const policy = globalThis.XAssistantTimePolicy;
   let config = policy.normalize();
-  const ready = chrome.storage.local.get(policy.KEY).then(data => {config = policy.normalize(data[policy.KEY]);});
+  const local=()=>globalThis.XAssistantRuntime?.storage||chrome.storage.local;
+  const ready = Promise.resolve().then(()=>local().get(policy.KEY)).then(data => {config = policy.normalize(data[policy.KEY]);});
+  ready.catch(()=>{}); // Drivers still receive the original initialization error when awaited.
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes[policy.KEY]) config = policy.normalize(changes[policy.KEY].newValue);
   });
@@ -12,7 +14,7 @@
     seconds: name => config[name],
     arm: (name, runId, account) => globalThis.XAssistantRuntime.call({kind: 'TIME_ARM', name, runId, account}),
     pending: async account => {
-      const data = await chrome.storage.local.get('xAssistantCooldownsV1');
+      const data = await local().get('xAssistantCooldownsV1');
       return data.xAssistantCooldownsV1?.[account.toLowerCase()]?.interaction || 0;
     }
   };

@@ -5,13 +5,14 @@ import vm from 'node:vm';
 
 const read = file => readFile(new URL('../' + file, import.meta.url), 'utf8');
 
-test('redesigned settings retain every existing control ID without duplicates', async () => {
+test('redesigned settings keep account controls and expose a posting-only copy editor without duplicate IDs', async () => {
   const html = await read('panel.html');
   const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
   assert.equal(ids.length, new Set(ids).size);
-  for (const id of ['message', 'api-form', 'api-key', 'api-remove', 'api-status', 'following', 'following-read', 'following-stop', 'following-export', 'following-status', 'following-count', 'following-list', 'library', 'count', 'export', 'import', 'editor-details', 'editor', 'rowid', 'rowtype', 'text', 'cancel', 'rows', 'logs-section', 'logs']) {
+  for (const id of ['message', 'api-form', 'api-key', 'api-remove', 'api-status', 'following', 'following-read', 'following-stop', 'following-export', 'following-status', 'following-count', 'following-list', 'library', 'count', 'export', 'clear', 'library-summary', 'editor-details', 'editor', 'rowid', 'text', 'cancel', 'bulk-details', 'bulk-mode', 'bulk-text', 'bulk-add', 'rows', 'logs-section', 'logs']) {
     assert.ok(ids.includes(id), `Missing control ${id}`);
   }
+  assert.ok(!ids.includes('import')&&!ids.includes('rowtype'),'old mixed-library controls must be removed');
   assert.match(html, /type="password"/);
   assert.match(html, /不代表密钥被删除/);
   assert.match(html, /aria-describedby="api-status key-help"/);
@@ -45,7 +46,8 @@ test('restored screenshot layout exposes follow and cleanup controls', async () 
  assert.match(source, /data-setting="auto-follow"/);
  assert.match(source, /data-module="posting"/);
  assert.match(source, /data-module="notifications"/);
- assert.equal((source.match(/class="module-icon"/g)||[]).length,3);
+ assert.match(source,/data-module="followback"/);
+ assert.equal((source.match(/class="module-icon"/g)||[]).length,4);
 });
 
 test('compact status prioritizes scheduler ownership without hiding real failures', async () => {
@@ -54,13 +56,13 @@ test('compact status prioritizes scheduler ownership without hiding real failure
   const end = source.indexOf(' };new MutationObserver(sync).observe(section', start);
   assert.ok(start >= 0 && end > start);
   const syncSource = source.slice(start, end) + ' };sync();';
-  function render({text, name='interaction', state='on', label='运行中', noLamp=false}) {
+  function render({text, name='interaction', state='on', label='运行中', noLamp=false, nextAt=''}) {
     const output={textContent:text, hidden:false};
     const lamp=noLamp?null:{textContent:label,dataset:{state},setAttribute(){}};
     const value={textContent:''};
     const timer={querySelector:s=>s==='span'?value:null,setAttribute(){}};
-    const section={querySelector:s=>s==='.status'?output:s==='.state-lamp'?lamp:null};
-    vm.runInNewContext(syncSource,{section,timer,posting:name==='posting',root:{querySelector(){throw Error('unexpected schedule access');}}});
+    const section={dataset:{nextAt},querySelector:s=>s==='.status'?output:s==='.state-lamp'?lamp:null};
+    vm.runInNewContext(syncSource,{section,timer,posting:name==='posting',notification:name==='notifications',Date:{now:()=>1000},root:{querySelector(){throw Error('unexpected schedule access');}}});
     return {output,lamp,value};
   }
   const stopped=render({text:'互动模块已停止',state:'off',label:'已停止'});
@@ -72,6 +74,10 @@ test('compact status prioritizes scheduler ownership without hiding real failure
   const notification=render({text:'上轮回帖完成 · 8.0 秒',name:'notifications',state:'wait',label:'等待关注后冷却'});
   assert.equal(notification.output.hidden,true);
   assert.equal(notification.value.textContent,'—');
+  const scheduledReply=render({text:'下次回帖 2 分钟',name:'notifications',state:'wait',label:'等待中',nextAt:'91000'});
+  assert.equal(scheduledReply.value.textContent,'1:30');
+  const replyCooldown=render({text:'下一条 · 8.0 秒 · 本轮已回复 1',name:'notifications',state:'on',label:'运行中',nextAt:'301000'});
+  assert.equal(replyCooldown.value.textContent,'8');
   const skipped=render({text:'AI 主动跳过（并非发送失败），等待下一帖 · 5.0 秒',state:'wait',label:'等待回帖完成'});
   assert.equal(skipped.output.hidden,true);
   const error=render({text:'回复提交结果未知，已安全停止',state:'off',label:'已停止'});
@@ -79,9 +85,15 @@ test('compact status prioritizes scheduler ownership without hiding real failure
   assert.equal(error.output.textContent,'回复提交结果未知，已安全停止');
   const running=render({text:'评价完成，等待点赞 · 4.2 秒'});
   assert.equal(running.output.hidden,true);
-  assert.equal(running.value.textContent,'4.2');
+  assert.equal(running.value.textContent,'5');
   const posting=render({text:'下次发帖 1428 秒',name:'posting',state:'wait',label:'冷却中'});
   assert.equal(posting.value.textContent,'23:48');
   const cleanup=render({text:'清理已停止',name:'cleanup',noLamp:true});
   assert.equal(cleanup.output.hidden,false);
+});
+test('absolute countdowns receive a wall-clock tick even when their deadline attribute is unchanged',async()=>{
+ const source=await read('view.js');
+ assert.match(source,/const countdownTick=setInterval\(/);assert.match(source,/!document.hidden&&root.dataset.collapsed!=='true'/);assert.match(source,/timerRenders.forEach\(sync=>sync\(\)\)/);
+ assert.match(source,/pagehide[^\n]+clearInterval\(countdownTick\)/);
+ const control=await read('console.js');assert.match(control,/Number.isFinite\(state.nextAt\)/);assert.match(control,/Number.isFinite\(worker.retryAt\)/);
 });

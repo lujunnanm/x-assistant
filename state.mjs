@@ -1,19 +1,42 @@
 import {validateRows,pick} from './core.mjs';
-export const KEYS={notifications:'xAssistantNotificationsRuntimeV1',interaction:'xAssistantRuntimeV1',posting:'xAssistantPostingV1',cleanup:'xAssistantCleanupV1'};
+export const KEYS={followback:'xAssistantFollowbackRuntimeV1',notifications:'xAssistantNotificationsRuntimeV1',interaction:'xAssistantRuntimeV1',posting:'xAssistantPostingV1',cleanup:'xAssistantCleanupV1'};
 export const uncertain=s=>['submitting','deleting','unknown'].includes(s?.phase);
 export function stopState(s={}){return {...s,active:false,nextAt:null,phase:uncertain(s)?'unknown':'stopped',revision:(s.revision||0)+1};}
-export function beginState(s={},other={}, {owner,account,resume=false,now=Date.now(),id=crypto.randomUUID()}){
+export function beginState(s={},other={}, {owner,account,documentId,resume=false,now=Date.now(),id=crypto.randomUUID()}){
  if(uncertain(s))throw Error('上次发送结果未知，请先核对平台记录；不会自动重发');
- if(other.active&&other.owner!==owner)throw Error('请在另一个模块所在的 X 标签页启动，避免页面相互抢占');
+ if((Array.isArray(other)?other:[other]).some(state=>state.active&&state.owner===owner))throw Error('当前标签页已有其他模块运行，请使用独立标签页');
  if(s.active&&s.owner!==owner)throw Error('模块正在另一个 X 标签页运行');
+ if(s.active&&!resume)throw Error('当前模块已运行，请先停止再启动');
+ if(s.active&&s.documentId&&s.documentId!==documentId)throw Error('任务属于旧页面，请刷新后重新启动');
  if(resume&&(!s.active||s.account!==account))throw Error('循环已停止或账号已变化');
  if(!/^\/[A-Za-z0-9_]{1,15}$/.test(account||''))throw Error('无法核对登录账号');
- return {...s,active:true,owner,account,runId:resume?s.runId:id,phase:'waiting',nextAt:resume&&Number.isFinite(s.nextAt)?s.nextAt:now+30000,error:null,revision:(s.revision||0)+1};
+ return {...s,active:true,owner,account,documentId,runId:resume?s.runId:id,activity:resume?s.activity:{step:'启动工作页',at:now,until:null,runId:id},lastIssue:s.account===account?s.lastIssue:null,receipt:resume?s.receipt:null,submittedAt:resume?s.submittedAt:null,phase:'waiting',nextAt:resume&&Number.isFinite(s.nextAt)?s.nextAt:now+30000,error:null,revision:(s.revision||0)+1};
 }
-export function patchState(s,patch,{owner,runId}){
+export function assertRunOwner(s,{owner,runId,documentId}){
+ if(!s||s.owner!==owner||typeof runId!=='string'||!runId||s.runId!==runId)throw Error('任务已停止或已被新任务替代');
+ if(s.documentId&&s.documentId!==documentId)throw Error('任务属于其他页面实例');
+ return s;
+}
+export function stopOwnedState(s={},auth){
+ if(!s.active&&!s.runId&&s.owner==null)return s;
+ assertRunOwner(s,auth);
+ return stopState(s);
+}
+export function patchState(s,patch,{owner,runId,documentId}){
  if(!s?.active||s.owner!==owner||s.runId!==runId)throw Error('任务已停止或已被新任务替代');
+ assertRunOwner(s,{owner,runId,documentId});
  const allowed=['phase','nextAt','error','receipt','rowId','text','submittedAt','cycleIndex','completed','pauseRequested','diagnostics'];
  const clean=Object.fromEntries(Object.entries(patch||{}).filter(([k])=>allowed.includes(k)));
+ const now=Date.now();
+ if(typeof patch?.activity?.step==='string'&&patch.activity.step.trim()){
+  const until=patch.activity.until;
+  clean.activity={step:patch.activity.step.trim().slice(0,150),at:now,until:Number.isFinite(until)&&until>now?Math.min(until,now+86400000):null,runId};
+ }
+ if(typeof patch?.lastIssue?.message==='string'&&patch.lastIssue.message.trim()){
+  const v=patch.lastIssue;
+  clean.lastIssue={message:v.message.trim().slice(0,320),code:String(v.code||'ITEM_ERROR').slice(0,80),targetId:/^\d{1,24}$/.test(v.targetId||'')?v.targetId:null,at:now,runId};
+ }
+ if(clean.phase==='submitting'&&!clean.receipt)clean.receipt=null;
  return {...s,...clean,revision:(s.revision||0)+1};
 }
 export function libraryOperation(app,op){

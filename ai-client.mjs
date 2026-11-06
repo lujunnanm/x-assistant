@@ -1,4 +1,4 @@
-import {directGenerate, interactionFallback, stripLegacyFooter} from './deepseek-direct.mjs';
+import {directGenerate, stripLegacyFooter} from './deepseek-direct.mjs';
 import {createAIError} from './ai-recovery.mjs';
 
 const FORBIDDEN = /我|本人|亲测|不是|不等于|与其|你以为/;
@@ -39,9 +39,9 @@ function validateBody(value, action, limit) {
   return text.trim();
 }
 
-export function validateReply(value, postId, {allowSocial = false} = {}) {
+export function validateReply(value, postId) {
   if (value?.action === 'skip') return {action: 'skip', text: '', postId, skipReason: 'model_choice'};
-  const body = validateBody({...value, text: allowSocial ? value?.text : stripLegacyFooter(value?.text)}, 'send_reply', 180);
+  const body = validateBody({...value, text: stripLegacyFooter(value?.text)}, 'send_reply', 180);
   const text = body;
   if (weightedLength(text) > 280) throw createAIError('content_length');
   return {action: 'send_reply', text, postId};
@@ -50,8 +50,7 @@ export function validateReply(value, postId, {allowSocial = false} = {}) {
 export async function generateReply(post, fetcher = directGenerate, notification = false) {
   if (!post || !/^\d+$/.test(post.id) || !validSourceText(post.text)) throw createAIError('invalid_input');
   const value = await request(notification ? 'notification-reply' : 'reply', post.text, fetcher);
-  if (!notification && value?.action === 'skip') return validateReply({action: 'send_reply', text: interactionFallback(post.text)}, post.id, {allowSocial: true});
-  return validateReply(value, post.id, {allowSocial: !notification});
+  return validateReply(value, post.id);
 }
 
 export function generateNotificationReply(post, fetcher = directGenerate) {

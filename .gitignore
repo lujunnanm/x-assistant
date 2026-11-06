@@ -5,6 +5,10 @@ coverage/
 
 TEST-RESULTS.txt
 backups/
+.codex-backups/
+work/
 .env
 __pycache__/
 *.pyc
+
+STRESS-RESULTS.json

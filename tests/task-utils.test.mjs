@@ -42,7 +42,7 @@ function fixture() {
     }
     await flush();
   };
-  return {tasks: context.XAssistantTasks, sleeps, timers, advance, jump: ms => {now += ms;}};
+  return {tasks: context.XAssistantTasks, context, sleeps, timers, advance, jump: ms => {now += ms;}};
 }
 
 function trackedSignal() {
@@ -100,6 +100,32 @@ test('waitFor uses elapsed wall time rather than the number of polling attempts'
   assert.equal(f.timers.size, 0);
 });
 
+test('hidden and unfocused pages have a finite wall timeout, not renewed on each probe', async()=>{
+ for(const hidden of [true,false]){
+  const f=fixture();let calls=0;
+  f.context.document={hidden,hasFocus:()=>{throw Error('a focus check is not a scheduling requirement');}};
+  const pending=f.tasks.waitForPage(()=>{calls++;return false;},{timeout:1000});
+  await f.advance(5000);assert.equal(await pending,null);assert.equal(calls,2);assert.equal(f.timers.size,0);
+ }
+});
+test('a hidden DOM mutation wakes the probe before its throttled timer', async()=>{
+ const f=fixture();let notify,ready=false,disconnected=false;
+ f.context.document={documentElement:{},hidden:true,hasFocus:()=>false};
+ f.context.MutationObserver=class{constructor(fn){notify=fn;}observe(){}disconnect(){disconnected=true;}};
+ const pending=f.tasks.waitForPage(()=>ready&&'rendered',{timeout:1000});
+ f.jump(500);ready=true;notify();assert.equal(await pending,'rendered');assert.equal(disconnected,true);assert.equal(f.timers.size,0);
+});
+test('observer cannot return a stale mutation, extend time, or leak on abort',async()=>{
+ for(const abort of [true,false]){
+  const f=fixture(),tracked=trackedSignal();let notify,ready=false,disconnected=false;
+  f.context.document={documentElement:{},visibilityState:'hidden'};
+  f.context.MutationObserver=class{constructor(fn){notify=fn;}observe(){}disconnect(){disconnected=true;}};
+  const pending=f.tasks.waitForPage(()=>ready,{timeout:1000,signal:tracked.signal});
+  if(abort){const rejection=assert.rejects(pending,isAbort);tracked.abort();await rejection;}
+  else{f.jump(700);notify();f.jump(301);ready=true;notify();assert.equal(await pending,null);}
+  assert.equal(disconnected,true);assert.equal(f.timers.size,0);assert.equal(tracked.count(),0);
+ }
+});
 test('waitFor does not return a probe result that arrived after its timeout', async () => {
   const f = fixture();
   const result = await f.tasks.waitFor(() => { f.jump(1001); return 'late'; }, {timeout: 1000});
@@ -192,4 +218,14 @@ test('bounded late result after cancellation cannot change the settled outcome',
   await flush();
   assert.equal(tracked.count(), 0);
   assert.equal(f.timers.size, 0);
+});
+
+test('managed deadline wake expires a hidden DOM wait even when its content timer never runs',async()=>{
+ const f=fixture(),tracked=trackedSignal();let wake,detached=false;
+ f.context.AbortController=AbortController;f.context.document={documentElement:{},hidden:true};
+ f.context.MutationObserver=class{observe(){}disconnect(){detached=true;}};
+ f.context.XAssistantRuntime.sleep=(ms,signal)=>{assert.equal(ms,1300);return new Promise(resolve=>{wake={resolve,signal};});};
+ const pending=f.tasks.waitForPage(()=>false,{timeout:1300,signal:tracked.signal});
+ f.jump(1300);wake.resolve();assert.equal(await pending,null);assert.equal(wake.signal.aborted,true);
+ assert.equal(f.timers.size,0);assert.equal(tracked.count(),0);assert.equal(detached,true);
 });

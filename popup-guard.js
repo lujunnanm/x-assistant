@@ -11,7 +11,7 @@
   for(let poll=0;poll<100&&Date.now()<deadline;poll++){
    const ds=dialogs();
    // Closing a composer can briefly unmount it before a draft sheet appears.
-   if(!ds.length){if(!sawDialog||++emptyPolls>=3)return true;await sleep(100);continue;}
+   if(!ds.length){if(!sawDialog||++emptyPolls>=10)return true;await sleep(100);continue;}
    sawDialog=true;emptyPolls=0;
    const prompts=ds.filter(isDraftPrompt);if(prompts.length>1||(!prompts.length&&ds.length!==1))return false;
    const d=prompts[0]||ds[0],buttons=[...d.querySelectorAll('button,[role="button"]')];
@@ -26,6 +26,8 @@
     // X first mounts an empty/loading shell; it is not a failed cancellation.
     if((d.textContent||'').trim()&&!d.querySelector('[role="progressbar"]'))return false;
    }else if(!clicked.has(button)&&!button.disabled&&button.getAttribute('aria-disabled')!=='true'){
+    await sleep(500);
+    if(!dialogs().includes(d)||button.isConnected===false||button.disabled||button.getAttribute('aria-disabled')==='true')continue;
     if(actions++>=6)return false;
     clicked.add(button);button.click();
    }

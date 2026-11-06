@@ -1,3 +1,11 @@
-import test from 'node:test';import assert from 'node:assert/strict';import rows from '../latest-collected-library-200.mjs';import {validateRows} from '../core.mjs';
-test('bundled latest collection contains exactly 200 unique enabled posts',()=>{const valid=validateRows(rows);assert.equal(valid.length,200);assert.equal(new Set(valid.map(r=>r.id)).size,200);assert.ok(valid.every(r=>r.type==='post'&&r.enabled&&r.text.trim()));});
-test('install only seeds empty libraries and preserves existing rows',async()=>{const fs=await import('node:fs/promises');const src=await fs.readFile(new URL('../background.js',import.meta.url),'utf8');assert.match(src,/latestCollectedLibraryV4019Loaded/);assert.match(src,/install&&!app\.rows\.length/);assert.doesNotMatch(src,/app\.libraryBackup=/);assert.match(src,/app\.rows=validateRows\(latestCollectedLibrary\)/);});
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile,access} from 'node:fs/promises';
+
+test('bundled legacy collection is never seeded into the new posting library',async()=>{
+ const background=await readFile(new URL('../background.js',import.meta.url),'utf8');
+ assert.doesNotMatch(background,/import\s+latestCollectedLibrary\s+from/);
+ assert.doesNotMatch(background,/app\.rows\s*=\s*validateRows\(latestCollectedLibrary\)/);
+ assert.doesNotMatch(background,/latestCollectedLibraryV4019Loaded/);
+ await assert.rejects(access(new URL('../latest-collected-library-200.mjs',import.meta.url)),'old bundled text bank must be removed');
+});

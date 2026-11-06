@@ -17,13 +17,14 @@
     <nav aria-label="配置与资源">
       <a href="#ai-settings" aria-current="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/></svg>AI 配置</a>
       <a href="#time-settings">时间控制</a>
-      <a href="#library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/></svg>文案库</a>
+      <a href="#library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/></svg>发帖文案库</a>
       <a href="#following"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="10" cy="8" r="3"/><path d="M4 20v-3a6 6 0 0 1 12 0v3M18 8h4M20 6v4"/></svg>已关注库</a>
+      <a href="deletion.html">删帖管理</a>
       <a href="#logs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h16M8 3v4M15 10v4M10 17v4"/></svg>运行日志</a>
     </nav>
   </aside>
   <main>
-    <header class="page-header"><h2>设置</h2></header>
+    <header class="page-header"><h2>设置</h2><button id="stop-all" type="button" class="danger">停止全部模块</button></header>
     <div id="message" role="status" aria-live="polite"></div>
     <section id="ai-settings" aria-labelledby="ai-title">
       <div class="section-heading"><h2 id="ai-title">AI 配置</h2><span class="hint">DeepSeek</span></div>
@@ -35,15 +36,16 @@
     </section>
     <section id="time-settings" aria-labelledby="time-title">
       <div class="section-heading"><h2 id="time-title">时间控制</h2><span class="hint">单位：秒</span></div>
-      <p class="hint" id="time-help">随机区间设为相同值可使用固定冷却。保存后用于下一次计时；已开始的冷却保持原截止时间，刷新或停止不会清除已记录的冷却。</p>
+      <p class="hint" id="time-help">固定保护：发帖、互动回复、回帖之间至少 23 秒；连续认证回关随机等待 55–70 秒；前后任一次是互动的普通关注时，仍至少间隔 2 分钟。互动与回帖均不点赞。随机区间设为相同值可使用固定冷却。保存后用于下一次计时；已开始的冷却保持原截止时间，刷新或停止不会清除已记录的冷却。</p>
       <form id="time-form" aria-describedby="time-help"><div id="time-fields"></div><div class="bar"><button type="submit">保存时间设置</button><button type="button" id="time-reset" class="secondary">填入默认值</button></div><p id="time-status" role="status">正在读取时间配置…</p></form>
     </section>
     <section id="library" aria-labelledby="library-title">
-      <div class="section-heading"><h2 id="library-title">文案库 <small id="count"></small></h2><div class="bar"><button id="export" class="secondary">导出 JSON</button><button id="export-backup" class="secondary">导出上次替换备份</button><label class="file">备份并替换全部<input id="replace-library" type="file" accept=".json,application/json" aria-label="备份并替换全部文案"></label><label class="file">导入 JSON<input id="import" type="file" accept=".json,application/json" aria-label="导入 JSON 文案库"></label></div></div>
-      <p class="hint">导入按 ID 合并；替换会先把全部旧文案备份在插件内，再替换发帖及评论文案。建议先导出 JSON 到本地。</p>
+      <div class="section-heading"><h2 id="library-title">发帖文案库 <small id="count"></small></h2><div class="bar"><button id="export" type="button" class="secondary">导出 JSON</button><button id="clear" type="button" class="danger">清空文案库</button></div></div>
+      <p class="hint">此处仅供发帖模块使用。粘贴原文，发帖时按原文发布，不调用 AI 改写；空库不发帖。互动和回帖不受此文案库影响。</p>
       <div id="library-summary" class="library-summary" aria-live="polite"></div>
-      <details id="editor-details"><summary>添加 / 编辑文案</summary><form id="editor"><input id="rowid" type="hidden"><label for="rowtype">文案类型<select id="rowtype"><option value="reply">评论</option><option value="post">发帖</option></select></label><label for="text">完整文案<textarea id="text" rows="4" required placeholder="在这里添加或编辑文案"></textarea></label><div class="bar"><button type="submit">保存条目</button><button id="cancel" type="button" class="secondary">取消编辑</button></div></form></details>
-      <details><summary>查看全部文案</summary><div id="rows"></div></details>
+      <details id="editor-details" open><summary>添加 / 编辑单条文案</summary><form id="editor"><input id="rowid" type="hidden"><label for="text">完整原文（可保留换行）<textarea id="text" rows="6" required maxlength="10000" placeholder="粘贴一条要原样发布的文案"></textarea></label><div class="bar"><button type="submit">保存文案</button><button id="cancel" type="button" class="secondary">取消编辑</button></div></form></details>
+      <details id="bulk-details"><summary>批量粘贴</summary><label for="bulk-mode">分隔方式<select id="bulk-mode"><option value="lines">每个非空行一条</option><option value="separator">单独一行 --- 分隔（每条可多行）</option></select></label><label for="bulk-text">待添加原文<textarea id="bulk-text" rows="8" placeholder="粘贴多条文案；选择上方分隔方式"></textarea></label><button id="bulk-add" type="button">批量添加</button></details>
+      <details><summary>查看与管理全部文案</summary><div id="rows"></div></details>
     </section>
     <section id="following" aria-labelledby="following-title">
       <div class="section-heading"><h2 id="following-title">已关注库</h2></div>
@@ -52,10 +54,15 @@
       <p id="following-status" role="status">尚未读取</p><p id="following-count"></p>
       <details><summary>查看账号</summary><div id="following-list"></div></details>
     </section>
-    <section id="logs-section" aria-label="运行日志"><details><summary>运行日志</summary><p id="interaction-diagnostics" class="hint" role="status"></p><div id="logs"></div></details></section>
+    <section id="logs-section" aria-label="运行日志"><details><summary>运行日志</summary><label for="log-module">模块筛选<select id="log-module"><option value="">全部</option><option value="posting">发帖</option><option value="interaction">互动</option><option value="notifications">回帖</option></select></label><p id="interaction-diagnostics" class="hint" role="status"></p><div id="logs"></div></details></section>
     <footer>遇到发送结果不确定时会停止，避免重复操作；不会退回屏幕坐标猜测点击。X 页面改版后可能需要更新扩展。</footer>
   </main>
 </div>
+<dialog id="library-confirm" aria-labelledby="library-confirm-title" aria-describedby="library-confirm-description">
+  <h2 id="library-confirm-title">确认更改文案库</h2>
+  <p id="library-confirm-description"></p>
+  <div class="bar"><button type="button" id="library-confirm-cancel" class="secondary" autofocus>取消</button><button type="button" id="library-confirm-accept" class="danger">确认更改</button></div>
+</dialog>
 <script src="panel.js" type="module"></script>
 </body>
 </html>

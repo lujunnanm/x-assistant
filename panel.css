@@ -45,19 +45,20 @@ input, textarea, select { display: block; width: 100%; margin-top: 8px; padding:
 input::placeholder, textarea::placeholder { color: #9ba39c; opacity: 1; }
 textarea { resize: vertical; line-height: 1.8; }
 input[type=hidden] { display: none; }
-#rowtype { max-width: 170px; }
 details { margin-top: 18px; }
 summary { position: relative; padding: 11px 0; font-size: 12px; font-weight: 550; color: #c6ccc5; cursor: pointer; }
 summary::marker { color: #3971f6; font-size: 11px; }
 details[open] > summary { margin-bottom: 8px; }
-#editor-details { padding: 0 18px; border: 1px solid var(--line); border-radius: 10px; background: #202326; }
+#editor-details, #bulk-details { padding: 0 18px 18px; border: 1px solid var(--line); border-radius: 10px; background: #202326; }
 #editor { padding: 0 0 18px; }
 #editor label:first-of-type { margin-top: 8px; }
+#bulk-details label:first-of-type { max-width: 350px; margin-top: 8px; }
+#bulk-details button { margin-top: 2px; }
 #rows .row { padding: 20px 0; border-top: 1px solid var(--line); }
 #rows small { color: #c0ccda; font-size: 10px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 #rows p { margin: 9px 0 14px; white-space: pre-wrap; overflow-wrap: anywhere; color: #e0e4dc; font-size: 14px; max-width: 70ch; }
 #rows .bar button { min-height: 31px; padding: 4px 12px; font-size: 11px; }
-#rows:empty::after { content: '暂无文案，可在上方添加或导入。'; display: block; padding: 24px 0; color: var(--muted); font-size: 12px; }
+#rows:empty::after { content: '暂无发帖文案，可在上方粘贴添加。'; display: block; padding: 24px 0; color: var(--muted); font-size: 12px; }
 .library-summary { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 12px 0 0; color: #c0ccda; font-size: 11px; font-variant-numeric: tabular-nums; }
 .library-summary:empty { display: none; }
 #api-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 11px; align-items: end; max-width: 610px; margin: 18px 0 13px; }
@@ -101,7 +102,7 @@ button.secondary,.file { border:0; color:#28415a; background:linear-gradient(145
 button.danger { color:#793249; border-color:#a9788a70; }
 input,textarea,select { border:0; background:#b9c9d9; color:#183047; border-radius:13px; box-shadow:inset 3px 3px 7px #6c839b40,inset -2px -2px 5px #f3f8ff99; }
 input::placeholder,textarea::placeholder { color:#4f6376; }
-#editor-details { background:transparent; border-color:#8097ad55; }
+#editor-details, #bulk-details { background:transparent; border-color:#8097ad55; }
 #api-status[data-state=error] { color:#8b2844; }
 #message[data-tone=error] { background:#f0dce3; color:#7c2440; }
 #message:not(:empty) { background:#dbe9f5; color:#233c53; }
@@ -114,3 +115,9 @@ input::placeholder,textarea::placeholder { color:#4f6376; }
 .time-value input { margin-top:4px;min-height:44px; }
 #time-form .bar { margin-top:20px; }
 @media(max-width:680px){.time-row{grid-template-columns:minmax(95px,1fr) repeat(2,minmax(62px,90px));gap:8px;}.time-value input{padding:10px 8px;}}
+
+#library-confirm { width:min(390px,calc(100% - 32px)); padding:24px; border:1px solid #adc0d1; border-radius:18px; color:#243b50; background:linear-gradient(145deg,#e2eaf2,#c4d1df); box-shadow:0 12px 36px #09172555; }
+#library-confirm::backdrop { background:#101d2c75; }
+#library-confirm h2 { font-size:18px; }
+#library-confirm p { color:#4c6074; overflow-wrap:anywhere; }
+#library-confirm .bar { justify-content:flex-end; }

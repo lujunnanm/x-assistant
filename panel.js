@@ -1,25 +1,98 @@
 import './time-policy.js';
 import {verifyCredential} from './deepseek-direct.mjs';
 import {collectFollowing} from './following.mjs';
-const $=id=>document.getElementById(id);let state,editing=null,busy=false,lastRows=null;
+import {splitPostingPaste} from './posting-copy.mjs';
+const $=id=>document.getElementById(id);let state,editing=null,busy=false,lastRows=null,postingCopies=null;
 async function send(kind,extra={}){const r=await chrome.runtime.sendMessage({kind,...extra});if(!r?.ok)throw Error(r?.error||'后台未响应');return r.state;}
 function note(text,tone='info'){$('message').textContent=text;$('message').dataset.tone=tone;}
+// DOM dialog, not window.confirm(): Ego suppresses native prompts from background tabs.
+function confirmLibraryChange(message,buttonText){
+ const dialog=$('library-confirm'),cancel=$('library-confirm-cancel'),accept=$('library-confirm-accept');
+ if(dialog.open)return Promise.resolve(false);
+ $('library-confirm-description').textContent=message;accept.textContent=buttonText;
+ return new Promise((resolve,reject)=>{
+  let approved=false;
+  const finish=()=>{cleanup();resolve(approved);};
+  const dismiss=()=>{approved=false;if(dialog.open)dialog.close();};
+  const agree=e=>{if(e.isTrusted&&!document.hidden&&document.hasFocus()){approved=true;dialog.close();}};
+  function cleanup(){cancel.removeEventListener('click',dismiss);accept.removeEventListener('click',agree);dialog.removeEventListener('close',finish);window.removeEventListener('pagehide',dismiss);}
+  cancel.addEventListener('click',dismiss);accept.addEventListener('click',agree);dialog.addEventListener('close',finish);window.addEventListener('pagehide',dismiss);
+  try{dialog.showModal();cancel.focus();}catch(e){cleanup();reject(e);}
+ });
+}
 function action(fn){return async event=>{if(event?.type==='submit')event.preventDefault();if(busy){note('正在处理，请稍候');return;}busy=true;document.querySelector('main').setAttribute('aria-busy','true');try{await fn(event);}catch(e){note(e.message,'error');}finally{busy=false;document.querySelector('main').removeAttribute('aria-busy');}};}
-function render(s){state=s;$('count').textContent=`${s.rows.length} 条`;
-$('library-summary').textContent=`发帖 ${s.rows.filter(r=>r.type==='post').length} 条 · 评论 ${s.rows.filter(r=>r.type==='reply').length} 条 · 已启用 ${s.rows.filter(r=>r.enabled).length} 条 · 已配图 ${s.rows.filter(r=>r.image).length} 条`;
-$('logs').replaceChildren(...s.logs.map(l=>{const e=document.createElement('div');e.textContent=`${new Date(l.time).toLocaleString()} · ${l.message}`;return e;}));
-const signature=JSON.stringify(s.rows);if(signature===lastRows)return;lastRows=signature;
-$('rows').replaceChildren(...s.rows.map(r=>{const box=document.createElement('div');box.className='row';const info=document.createElement('small');info.textContent=`${r.type==='post'?'发帖':'评论'} · ${r.enabled?'启用':'停用'} · ${r.id}${r.image?' · 已配图':''}`;const p=document.createElement('p');p.textContent=r.text;box.append(info,p);const bar=document.createElement('div');bar.className='bar';
-for(const [label,fn] of [['编辑',()=>{$('editor-details').open=true;editing=structuredClone(r);$('rowid').value=r.id;$('rowtype').value=r.type;$('text').value=r.text;$('editor').scrollIntoView({behavior:'smooth'});}], [r.enabled?'停用':'启用',async()=>render(await send('LIBRARY_OP',{op:{action:'upsert',id:r.id,expected:r,row:{...r,enabled:!r.enabled}}}))],['删除',async()=>{if(confirm('删除这条文案？'))render(await send('LIBRARY_OP',{op:{action:'delete',id:r.id,expected:r}}));}]]){const b=document.createElement('button');b.className='secondary';b.textContent=label;b.onclick=action(fn);bar.append(b);}box.append(bar);return box;}));}
-$('editor').onsubmit=action(async e=>{e.preventDefault();const id=$('rowid').value||crypto.randomUUID(),old=state.rows.find(x=>x.id===id);const row={id,type:$('rowtype').value,text:$('text').value,enabled:old?.enabled??true,...(old?.image&&$('rowtype').value==='post'?{image:old.image}:{})};render(await send('LIBRARY_OP',{op:{action:'upsert',id,expected:editing,row}}));$('editor').reset();$('rowid').value='';editing=null;note('条目已保存');});
+function renderLogs(){
+ const module=$('log-module').value,ai={posting:'AI_POST',interaction:'AI_REPLY',notifications:'AI_NOTIFICATION_REPLY'};
+ const logs=(state?.logs||[]).filter(entry=>!module||entry.module===module||entry.message.startsWith(module+' ·')||entry.message.startsWith(ai[module]+' ·'));
+ $('logs').replaceChildren(...logs.map(l=>{const e=document.createElement('div');e.textContent=`${new Date(l.time).toLocaleString()} · ${l.message}`;return e;}));
+}
+$('log-module').onchange=renderLogs;
+$('stop-all').onclick=async()=>{try{await send('STOP_ALL');note('已请求停止全部模块；已提交的请求无法撤回，未知发送记录保留');}catch(error){note(error.message,'error');}};
+function renderCopies(next){
+ if(postingCopies&&next.revision<postingCopies.revision)return;
+ postingCopies=next;
+ $('count').textContent=next.rows.length+' 条';
+ $('library-summary').textContent='已启用 '+next.rows.filter(r=>r.enabled).length+' 条 · 已停用 '+next.rows.filter(r=>!r.enabled).length+' 条';
+ const signature=JSON.stringify(next.rows);if(signature===lastRows)return;lastRows=signature;
+ $('rows').replaceChildren(...next.rows.map(r=>{
+  const box=document.createElement('div');box.className='row';
+  const info=document.createElement('small');info.textContent=(r.enabled?'已启用':'已停用')+' · '+r.id;
+  const p=document.createElement('p');p.textContent=r.text;box.append(info,p);
+  const bar=document.createElement('div');bar.className='bar';
+  for(const [label,fn] of [
+   ['编辑',()=>{editing=structuredClone(r);$('rowid').value=r.id;$('text').value=r.text;$('editor-details').open=true;$('editor').scrollIntoView({behavior:'smooth'});}],
+   [r.enabled?'停用':'启用',async()=>{await applyCopyOp({action:'upsert',id:r.id,expected:r,row:{...r,enabled:!r.enabled}});note('文案状态已更新');}],
+   ['删除',async()=>{if(await confirmLibraryChange('将删除这条发帖原文。取消不会更改文案库。','删除文案')){await applyCopyOp({action:'delete',id:r.id,expected:r});note('文案已删除');}}]
+  ]){
+   const button=document.createElement('button');button.type='button';button.className='secondary';button.textContent=label;button.onclick=action(fn);bar.append(button);
+  }
+  box.append(bar);return box;
+ }));
+}
+async function refreshCopies(){renderCopies(await send('POST_COPIES_GET'));}
+async function applyCopyOp(op,expectedRevision=postingCopies?.revision){
+ if(!postingCopies)throw Error('发帖文案库尚未加载');
+ try{const updated=await send('POST_COPIES_OP',{op:{...op,expectedRevision}});renderCopies(updated);return updated;}
+ catch(error){if(/已变化|其他窗口/.test(error.message))await refreshCopies();throw error;}
+}
+$('editor').onsubmit=action(async()=>{
+ const id=$('rowid').value||'copy_'+crypto.randomUUID();
+ const original=editing;
+ const row={id,text:$('text').value,enabled:original?.enabled??true};
+ await applyCopyOp({action:'upsert',id,expected:original,row});
+ $('editor').reset();$('rowid').value='';editing=null;note('发帖文案已保存');
+});
 $('cancel').onclick=()=>{$('editor').reset();$('rowid').value='';editing=null;};
-$('import').onchange=action(async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>2*1024*1024)throw Error('文件超过 2 MB');const {validateRows}=await import('./core.mjs');const incoming=validateRows(JSON.parse(await file.text()));const merged=new Map(state.rows.map(r=>[r.id,r]));incoming.forEach(r=>merged.set(r.id,r));render(await send('LIBRARY_OP',{op:{action:'merge',rows:incoming}}));note(`已导入 ${incoming.length} 条，按 ID 合并`);}finally{e.target.value='';}});
-$('replace-library').onchange=action(async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>2*1024*1024)throw Error('文件超过 2 MB');const {validateRows}=await import('./core.mjs');const incoming=validateRows(JSON.parse(await file.text()));if(!incoming.length)throw Error('替换文件不能为空');if(!confirm(`将备份并删除现有全部 ${state.rows.length} 条文案（包括评论），替换为 ${incoming.length} 条。确认继续？`))return;const updated=await send('LIBRARY_OP',{op:{action:'replace',rows:incoming,expectedRevision:state.revision}});render(updated);note(`已备份旧文案并替换为 ${updated.rows.length} 条`);}finally{e.target.value='';}});
-$('export-backup').onclick=()=>{if(!state.libraryBackup?.rows){note('没有替换备份','error');return;}const url=URL.createObjectURL(new Blob([JSON.stringify(state.libraryBackup.rows,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='x-copy-library-before-replace.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
-$('export').onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(state.rows,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='x-copy-library.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
-
-chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'){if(changes.app)changes.app.newValue&&render(changes.app.newValue);if(changes.xAssistantFollowedV1||changes.xAssistantFollowingScanV1)renderFollowing();}});
-send('GET').then(render).catch(e=>note(e.message,'error'));
+$('bulk-add').onclick=action(async()=>{
+ const texts=splitPostingPaste($('bulk-text').value,$('bulk-mode').value);
+ if(!texts.length)throw Error('请先粘贴文案');
+ if(!postingCopies)throw Error('发帖文案库尚未加载');
+ if(postingCopies.rows.length+texts.length>5000)throw Error('发帖文案库最多 5000 条');
+ const expectedRevision=postingCopies.revision;
+ const rows=[...postingCopies.rows,...texts.map(text=>({id:'copy_'+crypto.randomUUID(),text,enabled:true}))];
+ await applyCopyOp({action:'replace',rows},expectedRevision);
+ $('bulk-text').value='';note('已添加 '+texts.length+' 条发帖文案');
+});
+$('clear').onclick=action(async()=>{
+ if(!postingCopies)throw Error('发帖文案库尚未加载');
+ if(!postingCopies.rows.length){note('发帖文案库已经是空的');return;}
+ const original=postingCopies;
+ if(!await confirmLibraryChange('将清空当前 '+original.rows.length+' 条发帖文案。此操作不影响互动或回帖。请先导出 JSON 留底。','清空文案库'))return;
+ await applyCopyOp({action:'clear'},original.revision);$('editor').reset();$('rowid').value='';editing=null;note('发帖文案库已清空');
+});
+$('export').onclick=action(async()=>{
+ if(!postingCopies)throw Error('发帖文案库尚未加载');
+ const url=URL.createObjectURL(new Blob([JSON.stringify(postingCopies.rows,null,2)],{type:'application/json'}));
+ const link=document.createElement('a');link.href=url;link.download='sacred-plan-posting-copies.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+});
+chrome.storage.onChanged.addListener((changes,area)=>{
+ if(area!=='local')return;
+ if(changes.app?.newValue){state=changes.app.newValue;renderLogs();}
+ if(changes.xAssistantPostingCopiesV1){if(changes.xAssistantPostingCopiesV1.newValue)renderCopies(changes.xAssistantPostingCopiesV1.newValue);else refreshCopies().catch(e=>note(e.message,'error'));}
+ if(changes.xAssistantFollowedV1||changes.xAssistantFollowingScanV1)renderFollowing();
+});
+send('GET').then(s=>{state=s;renderLogs();}).catch(e=>note(e.message,'error'));
+refreshCopies().catch(e=>note(e.message,'error'));
 async function renderFollowing(){const data=await chrome.storage.local.get(['xAssistantFollowedV1','xAssistantFollowingScanV1']);const scan=data.xAssistantFollowingScanV1||{},rows=Object.values(data.xAssistantFollowedV1?.handles||{});$('following-status').textContent=scan.message||'尚未读取';$('following-count').textContent=`已关注库 ${rows.length} 个账号（历史合并）`;$('following-read').disabled=!!scan.active;$('following-stop').disabled=!scan.active;$('following-list').textContent=rows.slice(-30).map(r=>r.handle).join(' · ');}
 $('following-stop').onclick=async()=>{try{const s=(await chrome.storage.local.get('xAssistantFollowingScanV1')).xAssistantFollowingScanV1||{};await chrome.storage.local.set({xAssistantFollowingScanV1:{...s,active:false,message:'已请求停止读取'}});}catch(e){note(e.message);}};
 $('following-read').onclick=action(async()=>{
@@ -45,10 +118,11 @@ $('api-remove').onclick=action(async()=>{await chrome.storage.local.remove(API_K
 keyStatus().catch(()=>note('无法读取密钥配置状态'));
 
 const timing = globalThis.XAssistantTimePolicy;
-let timingDirty = false;
+let timingDirty = false, timingSaved = timing.normalize();
 function renderTiming(config) {
  const values=timing.normalize(config);
- $('time-fields').replaceChildren(...Object.entries(timing.fields).map(([name,field])=>{
+ timingSaved=values;
+ $('time-fields').replaceChildren(...Object.entries(timing.fields).filter(([,field])=>!field.legacy).map(([name,field])=>{
   const row=document.createElement('div');row.className='time-row';
   const title=document.createElement('label');title.htmlFor=`time-${name}-min`;title.textContent=field.label;row.append(title);
   for(const side of field.range?['min','max']:['min']){
@@ -63,6 +137,7 @@ function renderTiming(config) {
 $('time-form').addEventListener('input',()=>{timingDirty=true;$('time-status').textContent='有未保存的时间设置';});
 $('time-form').onsubmit=action(async()=>{
  const config=Object.fromEntries(Object.entries(timing.fields).map(([name,field])=>{
+  if(field.legacy)return [name,timingSaved[name]];
   const min=Number($(`time-${name}-min`).value),max=field.range?Number($(`time-${name}-max`).value):min;return [name,{min,max}];
  }));
  const saved=await send('TIME_SAVE',{config:timing.normalize(config)});renderTiming(saved);$('time-status').textContent='时间设置已保存；下一次计时生效';
@@ -77,7 +152,7 @@ chrome.storage.onChanged.addListener((changes,area)=>{
 function renderInteractionDiagnostics(state){
  const d=state?.diagnostics,node=$('interaction-diagnostics');
  if(!d){node.textContent='互动筛选统计：新版开始互动后记录。';return;}
- const labels={self:'自身帖子',confirmed:'已确认成功',uncertain:'结果待核对',retry_cooldown:'暂时退避',author_confirmed:'本轮已回复作者',views_missing:'曝光无法读取',low_views:'曝光不足500',unrelated:'交友语义不符',ai_error:'AI生成失败',ai_skip:'AI主动跳过',send_failed:'发送前失败',unknown:'发送结果未知'};
+ const labels={self:'自身帖子',confirmed:'已确认成功',uncertain:'结果待核对',retry_cooldown:'暂时退避',author_confirmed:'本轮已回复作者',unrelated:'交友语义不符',ai_error:'AI生成失败',ai_skip:'历史AI跳过',follower_greeting:'历史已关注问候',non_follower_greeting:'历史未关注问候',follower_library:'已关注文案库',non_follower_library:'未关注文案库',unknown_relation_library:'关系未知文案库',send_failed:'发送前失败',unknown:'发送结果未知'};
  const group=counts=>Object.entries(counts||{}).map(([key,count])=>`${labels[key]||key} ${count}`).join(' · ')||'暂无记录';
  node.textContent=`互动筛选统计 · 本次进程已检查 ${d.seen||0} 条。筛选排除：${group(d.skips)}。尝试结果：${group(d.outcomes)}。同一帖子不同原因分别计数；未提交失败可稍后重试。`;
 }

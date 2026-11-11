@@ -1,0 +1,10 @@
+.sacred-timeline-search{box-sizing:border-box;margin:0;padding:10px 16px;border-bottom:1px solid color-mix(in srgb,currentColor 16%,transparent);color:inherit;font:inherit}
+.sacred-timeline-search label{display:block;margin-bottom:5px;font-size:13px;font-weight:700}
+.sacred-search-fields{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.sacred-search-fields input,.sacred-search-fields button{box-sizing:border-box;min-height:34px;padding:5px 10px;border:1px solid color-mix(in srgb,currentColor 26%,transparent);border-radius:999px;background:transparent;color:inherit;font:inherit;font-size:13px}
+.sacred-search-fields input{flex:1 1 145px;min-width:0}
+.sacred-search-fields input::placeholder{color:inherit;opacity:.72}
+.sacred-search-fields button{cursor:pointer;white-space:nowrap}
+.sacred-search-fields button:hover{background:color-mix(in srgb,currentColor 10%,transparent)}
+.sacred-search-fields :focus-visible{outline:2px solid rgb(29,155,240);outline-offset:2px}
+.sacred-timeline-search p{margin:5px 0 0;overflow-wrap:anywhere;font-size:12px;line-height:1.5}

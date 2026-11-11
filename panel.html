@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>神圣计划 · 配置与资源</title>
+  <link rel="icon" type="image/png" href="icons/icon-32.png">
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+<div class="workspace">
+  <aside class="sidebar" aria-label="神圣计划导航">
+    <header class="brand">
+      <img class="brand-icon" src="icons/icon-128.png" alt="" width="54" height="54">
+      <div><h1>神圣计划</h1></div>
+    </header>
+    <nav aria-label="配置与资源">
+      <a href="#ai-settings" aria-current="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/></svg>AI 配置</a>
+      <a href="#time-settings">时间控制</a>
+      <a href="#interaction-settings">互动设置</a>
+      <a href="#followback-settings">回关设置</a>
+      <a href="#library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/></svg>发帖文案库</a>
+      <a href="#following"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="10" cy="8" r="3"/><path d="M4 20v-3a6 6 0 0 1 12 0v3M18 8h4M20 6v4"/></svg>已关注库</a>
+      <a href="deletion.html">删帖管理</a>
+      <a href="#logs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h16M8 3v4M15 10v4M10 17v4"/></svg>运行日志</a>
+    </nav>
+  </aside>
+  <main>
+    <header class="page-header"><h2>设置</h2><button id="stop-all" type="button" class="danger">停止全部模块</button></header>
+    <div id="message" role="status" aria-live="polite"></div>
+    <section id="ai-settings" aria-labelledby="ai-title">
+      <div class="section-heading"><h2 id="ai-title">AI 配置</h2><span class="hint">DeepSeek</span></div>
+      <p class="hint">密钥仅保存在当前浏览器插件存储，不随文案导出。只发送待生成文本给 DeepSeek。</p>
+      <form id="api-form"><label for="api-key">API Key<input id="api-key" type="password" autocomplete="off" required minlength="16" maxlength="256" placeholder="粘贴 API Key" aria-describedby="api-status key-help" spellcheck="false"></label><button type="submit">验证并保存</button></form>
+      <p id="api-status" role="status">正在读取本地配置…</p>
+      <p id="key-help" class="key-help">保存成功后输入框会清空以隐藏密钥，不代表密钥被删除。重启无需重填。</p>
+      <button id="api-remove" class="secondary">删除本地密钥</button>
+    </section>
+    <section id="time-settings" aria-labelledby="time-title">
+      <div class="section-heading"><h2 id="time-title">时间控制</h2><span class="hint">单位：秒</span></div>
+      <p class="hint" id="time-help">固定保护：发帖、互动回复、回帖之间至少 23 秒；连续认证回关随机等待 55–70 秒；前后任一次是互动的普通关注时，仍至少间隔 2 分钟。互动与回帖均不点赞。随机区间设为相同值可使用固定冷却。保存后用于下一次计时；已开始的冷却保持原截止时间，刷新或停止不会清除已记录的冷却。</p>
+      <form id="time-form" aria-describedby="time-help"><div id="time-fields"></div><div class="bar"><button type="submit">保存时间设置</button><button type="button" id="time-reset" class="secondary">填入默认值</button></div><p id="time-status" role="status">正在读取时间配置…</p></form>
+    </section>
+    <section id="interaction-settings" aria-labelledby="interaction-title">
+      <div class="section-heading"><h2 id="interaction-title">互动设置</h2></div>
+      <button id="interaction-search-toggle" class="secondary" type="button" role="switch" aria-checked="false" aria-label="在搜索时间线上互动" aria-describedby="interaction-search-help" disabled>读取中…</button>
+      <p id="interaction-search-help" class="hint">开启：按关键词轮换，从搜索结果选帖，不要求正文包含关键词。关闭：从选定的 X 首页时间线选帖。仅切换来源，不启动互动。</p>
+      <p id="interaction-search-status" class="hint" role="status"></p>
+      <button id="interaction-follow-toggle" class="secondary" type="button" role="switch" aria-checked="false" aria-label="自动关注" aria-describedby="interaction-follow-help" disabled>读取中…</button>
+      <p id="interaction-follow-help" class="hint">不按关注关系筛帖。开启后，互动回复成功将未关注作者加入独立关注队列；后台按原有间隔关注，不阻塞下一次互动。已关注的不重复关注。关闭后队列暂停，不影响互动或独立回关模块。</p>
+      <p id="interaction-follow-status" class="hint" role="status"></p>
+      <form id="interaction-filters">
+        <label for="interaction-keywords">搜索关键词</label>
+        <textarea id="interaction-keywords" rows="3" maxlength="2420" placeholder="例如：Claude Code" aria-describedby="interaction-keywords-help" disabled></textarea>
+        <p id="interaction-keywords-help" class="hint">每行一个关键词或短语，最多 20 个，按顺序轮换；留空用默认 AI 话题。只在搜索模式生效。</p>
+        <div class="bar"><button id="interaction-filters-save" type="submit" disabled>保存关键词</button></div>
+        <p id="interaction-filters-status" class="hint" role="status">正在读取关键词…</p>
+      </form>
+      <div class="interaction-range-heading"><label for="interaction-views">帖子曝光量</label><output id="interaction-views-value" for="interaction-views">大于 5,000 次</output></div>
+      <input id="interaction-views" type="range" min="0" max="100000" step="100" value="5000" aria-describedby="interaction-views-help" disabled>
+      <p id="interaction-views-help" class="hint">调整后自动保存，首页和搜索共用。每档 100 次，只互动曝光量高于设定值的帖子。</p>
+      <p id="interaction-views-status" class="hint" role="status">正在读取曝光门槛…</p>
+    </section>
+    <section id="followback-settings" aria-labelledby="followback-title">
+      <div class="section-heading"><h2 id="followback-title">回关设置</h2></div>
+      <button id="followback-sweep-toggle" class="secondary" type="button" role="switch" aria-checked="false" aria-label="完整遍历认证关注者" aria-describedby="followback-sweep-help" disabled>读取中…</button>
+      <p id="followback-sweep-help" class="hint">开启后，回关模块从顶部到末尾完整遍历认证关注者列表。每次回关后的冷却时间用于继续刷列表和预找下一位；到点才执行关注。遍历完成后自动关闭本开关和回关模块。</p>
+      <p id="followback-sweep-status" class="hint" role="status"></p>
+    </section>
+    <section id="library" aria-labelledby="library-title">
+      <div class="section-heading"><h2 id="library-title">发帖文案库 <small id="count"></small></h2><div class="bar"><button id="export" type="button" class="secondary">导出 JSON</button><button id="clear" type="button" class="danger">清空文案库</button></div></div>
+      <p class="hint">按简化方式运行：文案只有启用和停用。发帖模块按文案库从上到下依次选择启用文案；发布前自动去掉“AI概念配图”和来源链接，按原文发布，不调用 AI 改写；平台确认成功后自动从文案库删除，失败或结果未知时不删除。</p>
+      <p class="hint">两个浏览器的文案库各自独立。发帖运行中可编辑、停用和删除单条文案；正在填入或等待回执的文案暂时锁定。「+」新保存的文案默认启用，支持图片和动图附件，普通视频保存链接。</p>
+      <div id="library-summary" class="library-summary" aria-live="polite"></div>
+      <details id="import-details"><summary>导入文案包 / JSON 备份</summary>
+        <label class="file">选择 JSON 文件<input id="import-file" type="file" accept="application/json,.json"></label>
+        <label for="import-text">或粘贴 JSON<textarea id="import-text" rows="5" placeholder="粘贴 rows 数组或含 rows 的文案包"></textarea></label>
+        <div class="bar"><button id="import-preview" type="button" class="secondary">检查并预览</button><button id="import-apply" type="button" disabled>合并导入</button></div>
+        <p id="import-summary" role="status">导入只合并，不覆盖同 ID 的不同内容；是否实际发帖仍由发帖模块开关决定。</p><div id="import-rows" class="import-rows"></div>
+      </details>
+      <details id="editor-details" open><summary>添加 / 编辑单条文案</summary><form id="editor"><input id="rowid" type="hidden">
+        <label for="text">完整原文（可保留换行）<textarea id="text" rows="6" required maxlength="10000" placeholder="粘贴一条要原样发布的文案"></textarea></label>
+        <p id="editor-status" class="hint">新文案保存后默认启用；停用后不会被发帖模块选中。</p>
+        <div class="bar"><button type="submit">保存文案</button><button id="cancel" type="button" class="secondary">取消编辑</button></div>
+      </form></details>
+      <details id="bulk-details"><summary>批量粘贴纯文字</summary><label for="bulk-mode">分隔方式<select id="bulk-mode"><option value="lines">每个非空行一条</option><option value="separator">单独一行 --- 分隔（每条可多行）</option></select></label><label for="bulk-text">待添加原文<textarea id="bulk-text" rows="8" placeholder="粘贴多条文案；选择上方分隔方式"></textarea></label><button id="bulk-add" type="button">批量添加并启用</button></details>
+      <details id="library-list" open><summary>查看与管理全部文案</summary>
+        <div class="library-filters"><label for="library-search">搜索<input id="library-search" type="search" placeholder="正文、新闻 ID 或来源"></label></div>
+        <p id="library-filter-count" class="hint" role="status"></p><div id="rows"></div>
+      </details>
+    </section>
+    <section id="following" aria-labelledby="following-title">
+      <div class="section-heading"><h2 id="following-title">已关注库</h2></div>
+      <p class="hint">只读采集，按账号去重；保留历史记录，不保证覆盖全部关注账号。</p>
+      <div class="bar"><button id="following-read">读取当前关注列表</button><button id="following-stop" class="danger" disabled>停止读取</button><button id="following-export" class="secondary">导出已关注库</button></div>
+      <p id="following-status" role="status">尚未读取</p><p id="following-count"></p>
+      <details><summary>查看账号</summary><div id="following-list"></div></details>
+    </section>
+    <section id="logs-section" aria-label="运行日志"><details><summary>运行日志</summary><label for="log-module">模块筛选<select id="log-module"><option value="">全部</option><option value="posting">发帖</option><option value="interaction">互动</option><option value="notifications">回帖</option></select></label><p id="interaction-diagnostics" class="hint" role="status"></p><div id="logs"></div></details></section>
+    <footer>遇到发送结果不确定时会停止，避免重复操作；不会退回屏幕坐标猜测点击。X 页面改版后可能需要更新扩展。</footer>
+  </main>
+</div>
+<dialog id="library-confirm" aria-labelledby="library-confirm-title" aria-describedby="library-confirm-description">
+  <h2 id="library-confirm-title">确认更改文案库</h2>
+  <p id="library-confirm-description"></p>
+  <div class="bar"><button type="button" id="library-confirm-cancel" class="secondary" autofocus>取消</button><button type="button" id="library-confirm-accept" class="danger">确认更改</button></div>
+</dialog>
+<script src="panel.js" type="module"></script>
+</body>
+</html>

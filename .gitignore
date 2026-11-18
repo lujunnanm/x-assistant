@@ -1,0 +1,10 @@
+.DS_Store
+node_modules/
+*.log
+coverage/
+
+TEST-RESULTS.txt
+backups/
+.env
+__pycache__/
+*.pyc

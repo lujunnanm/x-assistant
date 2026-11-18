@@ -1,0 +1,68 @@
+/* Current graphite/orange interface, consolidated from the v4 cascade. */
+#x-assistant-float{--ink:#e3e8ee;--muted:#acb8c8;--accent:#ff9c58;position:fixed;right:20px;bottom:20px;z-index:2147483646;width:440px;max-width:calc(200vw - 48px);max-height:calc(200dvh - 80px);overflow:auto;padding:22px;box-sizing:border-box;border:1px solid #364456;border-radius:28px;background:url('icons/stone-grain.png'),linear-gradient(145deg,#17212f,#0c131e);box-shadow:0 18px 36px #02060c66;font:16px/1.4 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;color:var(--ink);color-scheme:dark;text-align:left;transform:scale(.5);transform-origin:bottom right;scrollbar-color:#475567 #101823;scrollbar-width:thin}
+#x-assistant-float *{box-sizing:border-box}
+#x-assistant-float [hidden]{display:none!important}
+#x-assistant-float ::selection{background:#f2853c;color:#180e08}
+#x-assistant-float header{display:flex;align-items:center;justify-content:space-between;height:40px;margin-bottom:16px}
+#x-assistant-float strong{display:flex;align-items:center;gap:12px;font-size:22px;white-space:nowrap}
+#x-assistant-float .brand-icon{width:40px;height:40px;object-fit:contain}
+#x-assistant-float button{font:inherit;cursor:pointer;color:var(--ink)}
+#x-assistant-float :is(button,a):focus-visible{outline:2px solid #ffb781;outline-offset:3px}
+#x-assistant-float button:disabled{opacity:.55;cursor:default}
+#x-assistant-float .master-control{display:grid;grid-template-columns:1fr;margin-bottom:16px}
+#x-assistant-float .master-control>button,#x-assistant-float .close{--key-seam:currentColor;border:1px solid;border-color:#676b73 #1b1d23 #101116 #50545c;border-radius:12px;background:linear-gradient(155deg,#4a4e54,#25282e);box-shadow:inset 0 1px 1px #afb3bc40,0 2px 0 var(--key-seam),0 6px 0 #07090d,0 9px 12px #0008;min-height:44px;padding:9px 18px}
+#x-assistant-float .master-control>button[aria-checked=true]{--key-seam:#ff781f}
+#x-assistant-float .master-control>button:hover:not(:disabled){color:#ffb781}
+#x-assistant-float .master-control>button:active:not(:disabled){transform:translateY(2px)}
+#x-assistant-float .close{position:relative;width:36px;height:36px;min-height:36px;padding:0;font-size:0}
+#x-assistant-float .close::before,#x-assistant-float .close[aria-expanded=false]::after{content:'';position:absolute;left:50%;top:50%;width:14px;height:2px;background:currentColor;border-radius:1px;transform:translate(-50%,-50%)}
+#x-assistant-float .close[aria-expanded=false]::after{width:2px;height:14px}
+#x-assistant-float section{--progress:0;position:relative;display:grid;grid-template-columns:42px 50px minmax(42px,1fr) 80px;align-items:center;gap:10px;min-height:76px;padding:14px 12px;margin-top:10px;border-radius:16px;background:url('icons/stone-grain.png'),linear-gradient(145deg,#263341,#17212e);box-shadow:inset 0 1px 1px #667a8b38,0 5px 10px #02070d66}
+#x-assistant-float section>b{font-size:18px;font-weight:650;white-space:nowrap;padding-right:10px;border-right:1px solid #475260}
+#x-assistant-float .module-icon{display:grid;place-items:center;width:42px;height:42px;padding:0;border-radius:13px;color:var(--muted);background:linear-gradient(145deg,#101823,#253343);border:1px solid #344354;box-shadow:inset 0 2px 5px #0009}
+#x-assistant-float .module-icon[aria-checked=true]{color:var(--accent);border-color:#a26236;box-shadow:inset 0 2px 5px #0009,0 2px 0 #ff893e}
+#x-assistant-float .module-icon:hover:not(:disabled){border-color:currentColor}
+#x-assistant-float .module-icon svg{width:25px;height:25px}
+#x-assistant-float .countdown{display:flex;gap:4px;align-items:baseline;justify-content:center;font-variant-numeric:tabular-nums}
+#x-assistant-float .countdown span{color:var(--accent);font-size:22px;font-weight:650}
+#x-assistant-float .state-lamp{display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:14px;color:var(--muted)}
+#x-assistant-float .state-lamp::before{content:'';width:8px;height:8px;border-radius:50%;background:#8291a4}
+#x-assistant-float .state-lamp[data-state=on]::before{background:#f2853c}
+#x-assistant-float .state-lamp[data-state=wait]::before{background:#e3b371}
+#x-assistant-float .state-lamp[data-state=warn]{color:#f5bd93}
+#x-assistant-float .state-lamp[data-state=warn]::before{background:#f2853c}
+#x-assistant-float .status{display:none!important}
+#x-assistant-float [role=alert]{font-size:14px;border-radius:10px;margin-bottom:12px}
+.x-assistant-selected{outline:3px solid #ff9c58!important;outline-offset:3px}
+@media(max-width:470px){#x-assistant-float{right:12px;bottom:12px;padding:18px 14px}}
+@media(prefers-reduced-motion:reduce){#x-assistant-float *{transition:none!important;animation:none!important}}
+/* Independent workspaces keep the incumbent material, dimensions and controls. */
+#x-assistant-float[data-collapsed=true]>:not(header){display:none!important}
+#x-assistant-float[data-collapsed=true] header{margin-bottom:0}
+#x-assistant-float .workspace-notice{font-size:14px;line-height:1.5;color:#f5bd93;margin-top:12px;overflow-wrap:anywhere}
+#x-assistant-float .workspace-links{display:flex;gap:16px;align-items:center;margin-top:14px}
+#x-assistant-float .workspace-links button{padding:4px 0;border:0;background:none;color:var(--muted);font-size:14px}
+#x-assistant-float .workspace-links button:hover{color:var(--accent)}
+
+
+/* Same material, one global console with independent module switches. */
+#x-assistant-float[data-workspace=managed] section{grid-template-columns:42px 50px minmax(42px,1fr) 80px;gap:8px}
+#x-assistant-float .module-title{font-size:18px;font-weight:650;white-space:nowrap;padding:0 10px 0 0;border:0;border-right:1px solid #475260;background:none;text-align:left}
+#x-assistant-float .module-title:disabled{opacity:1;color:var(--ink)}
+#x-assistant-float .module-fixed{font-size:14px;color:var(--muted);text-align:center}
+#x-assistant-float .service-summary{font-size:14px;color:var(--muted);margin-bottom:10px}
+#x-assistant-float .module-issue{grid-column:1/-1;display:flex;align-items:center;gap:10px;font-size:14px;color:#f5bd93}
+#x-assistant-float .module-issue[data-tone=note]{color:var(--muted)}
+#x-assistant-float .module-issue span{flex:1;overflow-wrap:anywhere}
+#x-assistant-float .repair-worker{flex-shrink:0;font-size:14px;padding:4px 8px;border:1px solid #74513b;border-radius:6px;background:#30251e}
+#x-assistant-float .workspace-links span{margin-left:auto;font-size:14px;color:var(--muted)}
+
+/* Compact console: remove routine copy while preserving actionable warnings. */
+#x-assistant-float .service-summary,
+#x-assistant-float .workspace-links,
+#x-assistant-float .module-issue[data-tone="note"]{display:none!important}
+#x-assistant-float .master-control>button[aria-checked="true"]{color:var(--accent)}
+#x-assistant-float [data-module="posting"][data-selected="true"] .module-title,
+#x-assistant-float [data-module="interaction"][data-selected="true"] .module-title,
+#x-assistant-float [data-module="notifications"][data-selected="true"] .module-title,
+#x-assistant-float [data-module="followback"][data-selected="true"] .module-title{color:var(--accent)}

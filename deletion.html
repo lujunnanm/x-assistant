@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>删帖管理 · 神圣计划</title>
+  <link rel="icon" type="image/png" href="icons/icon-32.png">
+  <link rel="stylesheet" href="panel.css">
+  <link rel="stylesheet" href="deletion.css">
+</head>
+<body>
+<div class="workspace">
+  <aside class="sidebar" aria-label="神圣计划导航">
+    <header class="brand"><img class="brand-icon" src="icons/icon-128.png" alt="" width="54" height="54"><h1>神圣计划</h1></header>
+    <nav aria-label="删帖管理导航">
+      <a href="deletion.html" aria-current="true">删帖管理</a>
+      <a href="#history">操作记录</a>
+      <a href="panel.html">返回设置</a>
+    </nav>
+  </aside>
+  <main>
+    <header class="page-header"><h2>删帖管理</h2></header>
+    <section aria-labelledby="scan-title">
+      <div class="section-heading"><h2 id="scan-title">查找交友帖</h2></div>
+      <p class="hint">扫描会打开专用资料页并滚动，只生成预览，不会删帖。你的普通 X 页面保持只读；回帖、转帖和引用帖不在删除范围内。</p>
+      <label for="tagged" class="check-option"><input type="checkbox" id="tagged">预选仅标签命中的原创（包括正文不讲交友的帖子）</label>
+      <div class="bar"><button type="button" id="scan">扫描我的帖子</button><button type="button" id="stop" class="secondary" disabled>停止</button></div>
+      <details><summary>用本人帖子链接补查较早的内容</summary><label for="own-links">每行一条完整 X 原帖链接（最多 500 条）</label><textarea id="own-links" rows="3"></textarea><button type="button" class="secondary" id="verify-links">只读核验这些链接</button></details>
+      <p id="status" role="status" aria-live="polite">尚未扫描。</p>
+    </section>
+    <section aria-labelledby="preview-title">
+      <div class="section-heading"><h2 id="preview-title">删除预览</h2><button type="button" id="export-plan" class="secondary" disabled>导出清单</button></div>
+      <div id="summary" aria-live="polite"></div>
+      <h3 class="list-title">匹配的原创帖</h3>
+      <div id="matched" class="preview-list" aria-label="匹配的原创帖"></div>
+      <details><summary>需手动核对</summary><div id="review" class="preview-list" aria-label="需手动核对的帖子"></div></details>
+      <details><summary>其他已核实原创（默认不选）</summary><div id="others" class="preview-list"></div></details>
+      <details><summary>未能核实的帖子</summary><div id="unverified" class="preview-list" aria-label="未能核实，不可自动删除"></div></details>
+      <div class="actions"><button type="button" id="prepare" class="danger" disabled>核对所选并删除…</button></div>
+    </section>
+    <section id="history" aria-labelledby="history-title">
+      <div class="section-heading"><h2 id="history-title">操作记录</h2></div>
+      <div id="progress" role="status" aria-live="polite"></div>
+      <div id="status-ledger" aria-label="删除记录"></div>
+    </section>
+  </main>
+</div>
+<dialog id="confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-summary confirm-warning">
+  <h2 id="confirm-title">永久删除所选帖子？</h2>
+  <div id="confirm-summary"></div>
+  <p id="confirm-warning">仅永久删除本人原创帖，无法撤销。删除结果未知时不会重试。</p>
+  <label for="confirm-account">输入此次预览的 X 账号以确认<input id="confirm-account" type="text" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="@用户名"></label>
+  <div class="bar"><button type="button" id="cancel-confirm" class="secondary" autofocus>取消</button><button type="button" id="approve" class="danger" disabled>确认永久删除</button></div>
+</dialog>
+<script type="module" src="deletion-panel.mjs"></script>
+</body>
+</html>

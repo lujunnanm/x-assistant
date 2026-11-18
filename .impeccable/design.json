@@ -1,0 +1,55 @@
+{
+  "product": "神圣计划",
+  "version": 4,
+  "direction": "minimal charcoal console with warm orange light-line identity",
+  "mode": "operate",
+  "reference": "https://www.pinterest.com/pin/717198309453481854/",
+  "colors": {
+    "surface": "#191b1e",
+    "page": "#17191c",
+    "ink": "#f1f1ef",
+    "muted": "#a6aaa9",
+    "line": "#303337",
+    "accent": "#ff963f",
+    "warmText": "#ffc391"
+  },
+  "typography": {
+    "brand": [
+      "Songti SC",
+      "Noto Serif CJK SC",
+      "serif"
+    ],
+    "body": [
+      "-apple-system",
+      "BlinkMacSystemFont",
+      "PingFang SC",
+      "Microsoft YaHei",
+      "sans-serif"
+    ],
+    "numeric": "tabular-nums"
+  },
+  "overlay": {
+    "width": 304,
+    "radius": 14,
+    "edge": 16,
+    "mainRows": [
+      "posting",
+      "interaction",
+      "notifications"
+    ],
+    "advancedCollapsed": true,
+    "statusPriority": [
+      "error",
+      "scheduler ownership",
+      "active driver details"
+    ],
+    "idleCountdown": "hidden"
+  },
+  "panel": {
+    "sidebarWidth": 190,
+    "maxWidth": 1440,
+    "mobileBreakpoint": 680
+  },
+  "logo": "icons/logo-1024.png",
+  "generationPrompt": "design/logo-prompt.txt"
+}

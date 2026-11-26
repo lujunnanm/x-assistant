@@ -1,0 +1,21 @@
+/* Errors change the icon, not the layout. Never hide the recovery control. */
+#x-assistant-float .module-issue > span,
+#x-assistant-float .module-issue:has(> .repair-worker[hidden]),
+#x-assistant-float .workspace-notice {
+  display: none !important;
+}
+
+#x-assistant-float section:has(> .module-issue[data-tone="warning"]:not([hidden])) .module-icon {
+  color: #ff5363;
+  border-color: currentColor;
+  box-shadow: inset 0 2px 5px #0009, 0 0 0 1px currentColor;
+}
+
+/* The brand represents a console-wide error, not an error in every module. */
+#x-assistant-float:has(> .workspace-notice:not([hidden])) .brand-icon,
+#x-assistant-float:has(.master-control > [aria-label="后台未响应"]) .brand-icon {
+  outline: 2px solid #ff5363;
+  outline-offset: 1px;
+  border-radius: 9px;
+  filter: grayscale(1) sepia(1) saturate(7) hue-rotate(305deg);
+}
